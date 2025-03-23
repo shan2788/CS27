@@ -169,12 +169,11 @@
                         </a>
                     </li>
                     <li class="sidebar-item">
-                        <a  class="sidebar-link">
-                            <i class="fas fa-map sidebar-icon" style="color: white"></i>                                <span>Map</span>
-                    </a>
+                        <a href="{% url 'map' %}" class="sidebar-link">
+                            <img src="/static/Images/map.png" alt="Map" class="sidebar-icon">
+                            <span>Map</span>
+                        </a>
                     </li>
-
-
                     <li class="sidebar-item">
                         <a href="{% url 'farmSettings' %}" class="sidebar-link">
                             <img src="/static/Images/settingsCog.png" alt="Settings" class="sidebar-icon">

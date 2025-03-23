@@ -38,6 +38,7 @@ urlpatterns = [
     path(""           , include("assetMaintenance.urls")),
     path("emergency/" , include("Emergency.urls"       )),
     path(""           , include("assetExpenses.urls"   )),
+    path('map/'       , include('Map.urls')),
     path(""           , include(router.urls            ))
 ]
 
