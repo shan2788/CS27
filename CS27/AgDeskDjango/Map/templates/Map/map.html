@@ -75,7 +75,7 @@
     }
 
     const geojson = drawnPolygon.toGeoJSON();
-    fetch("/api/ndvi/", {
+    fetch("/map/api/ndvi/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ geometry: geojson.geometry })

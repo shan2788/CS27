@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json, requests
-from sentinel_auth import get_sentinel_token
+from .sentinel_auth import get_sentinel_token
 
 
 @login_required(login_url="login")
