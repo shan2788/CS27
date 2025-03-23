@@ -17,25 +17,78 @@
             <div id="map" style="height: 500px; border: 1px solid #ccc; border-radius: 8px;"></div>
         </div>
     </div>
+    <div class="mt-3">
+        <button id="start-draw" class="btn btn-primary">Start Drawing</button>
+        <button id="end-draw" class="btn btn-secondary">Cancel Drawing</button>
+        <button class="btn btn-success" onclick="submitPolygon()">Get NDVI</button>
+    </div>
 </div>
 
 <!-- Leaflet JS & CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
 <script>
-  // 初始化地图
-  var map = L.map('map').setView([51.505, -0.09], 13);  // 可替换成你的实际坐标
+  let drawnPolygon = null;
+  let drawHandler;
+  const map = L.map('map').setView([34.05, 118.25], 10);
 
-  // 加载 OpenStreetMap 图层
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
-  // 示例标记点（可以后续从 Django 动态渲染）
-  L.marker([51.505, -0.09]).addTo(map)
-    .bindPopup('Example Farm')
-    .openPopup();
+  const drawnItems = new L.FeatureGroup();
+  map.addLayer(drawnItems);
+
+  drawHandler = new L.Draw.Polygon(map, {
+    allowIntersection: false,
+    showArea: true,
+    drawError: {
+      color: '#e1e100',
+      message: '<strong>Error:</strong> shape invalid!'
+    },
+    shapeOptions: {
+      color: '#97009c'
+    }
+  });
+
+  document.getElementById("start-draw").addEventListener("click", function() {
+    drawHandler.enable();
+  });
+
+  document.getElementById("end-draw").addEventListener("click", function() {
+    drawHandler.disable();
+  });
+
+  map.on(L.Draw.Event.CREATED, function (event) {
+    if (drawnPolygon) map.removeLayer(drawnPolygon);
+    drawnPolygon = event.layer;
+    drawnItems.addLayer(drawnPolygon);
+  });
+
+  function submitPolygon() {
+    if (!drawnPolygon) {
+      alert("Please draw a region first.");
+      return;
+    }
+
+    const geojson = drawnPolygon.toGeoJSON();
+    fetch("/api/ndvi/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ geometry: geojson.geometry })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert("Average NDVI: " + data.ndvi.toFixed(3));
+    })
+    .catch(err => {
+      alert("Error fetching NDVI");
+      console.error(err);
+    });
+  }
 </script>
 
 {% endblock %}
