@@ -1,15 +1,41 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% block webpageContent %}
+{% load static %}
 
-{% block content %}
-<h2>Farm Map</h2>
-<div id="map" style="height: 500px;"></div>
+<!-- Page Content -->
+<div class="container" style="max-width: 100%;">
+    <!-- Header -->
+    <div class="row align-items-center mb-4">
+        <div class="col-md-6">
+            <h4 class="card-title">Farm Map <span class="text-muted fw-normal ms-2"></span></h4>
+        </div>
+    </div>
+
+    <!-- Map Section -->
+    <div class="row">
+        <div class="col-12">
+            <div id="map" style="height: 500px; border: 1px solid #ccc; border-radius: 8px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet JS & CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-  // 示例：Leaflet.js 地图初始化
-  var map = L.map('map').setView([51.505, -0.09], 13);
+  // 初始化地图
+  var map = L.map('map').setView([51.505, -0.09], 13);  // 可替换成你的实际坐标
+
+  // 加载 OpenStreetMap 图层
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
-</script>
-{% endblock %}
 
+  // 示例标记点（可以后续从 Django 动态渲染）
+  L.marker([51.505, -0.09]).addTo(map)
+    .bindPopup('Example Farm')
+    .openPopup();
+</script>
+
+{% endblock %}
