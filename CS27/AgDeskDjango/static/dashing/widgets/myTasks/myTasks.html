@@ -1,0 +1,20 @@
+<div>
+    <h1>My Tasks</h1>
+    <input type="date" id="myTasks-date-input" class="form-control mb-3">
+      <table class="table table-hover" id="tasksTable">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Status</th>
+            <th scope="col">Priority</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr rv-each-item="data">
+            <td>{ item.label }</td>
+            <td>{ item.value.status }</td>
+            <td> <span class="priority-indicator">{item.value.priority}</span></td>
+          </tr>
+        </tbody>
+      </table>
+</div>

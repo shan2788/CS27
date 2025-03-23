@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block webpageContent %}
+{% load static %}
+
+<head>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="/static/tasks.css">
+    <link rel="stylesheet" href="/static/kanban.css">
+    <script src="/static/kanban.js"></script>
+    <div id="csrf-hiding-spot" hidden>{% csrf_token %}</div>
+    <div id="starting-data" hidden data-cards-data="{{ CardInfoList }}"></div>
+</head>
+
+<!-- Template for the task cards -->
+<template id="task-card-template">
+    <div class="card draggable dropzone-location" id="card_taskID" data-task-id="taskID"
+        draggable="true" ondragstart="drag(event)" ondragend="dragEnd()">
+        <div class="card-body p-2">
+            <div class="card-title">
+                <h6 class="task-name">taskName</h6>
+                <span class="kanban-card-delete-btn" onclick="removeCard()">x</span>
+            </div>
+            <p class="task-desc">taskDesc</p>
+            <p class="task-due-date">taskDueDate</p>
+            <p class="task-assigned-to">taskAssignedTo</p>
+        </div>
+    </div>
+    <div class="dropzone rounded" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="clearDrop(event)"></div>
+</template>
+
+<!-- Add Task Modal -->
+<div class="modal fade" id="add-task-modal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="visibility: visible;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add Task</h5>
+            </div>
+            <div class="modal-body">
+                {% if UTasks %}
+                    <select id="add-task-select">
+                        <!-- Very unsafe (and inelegant), will need refactoring -->
+                        <!-- Description moved to end to minimise errors -->
+                        {% for task in UTasks %}
+                            <option id="add-task-option-{{task.taskID}}"
+                                value="{{task.status}}, -1, {{task.taskID}}, '{{task.assignedTo}}', '{{task.dueDate}}', '{{task.name}}', '{{task.description}}'">
+                                {{ task.displayText }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <p hidden id="no-tasks-msg">No tasks</p>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button class="btn custom-button" type="submit" id="add-task-btn">Add</button>
+                {% else %}
+                    <select hidden id="add-task-select"></select>
+                    <p id="no-tasks-msg">No tasks</p>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button hidden class="btn custom-button" type="submit" id="add-task-btn">Add</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<body>
+    <!-- Head -->
+    <div hidden class="alert" role="alert" id="message-box"> message </div>
+    <div style="width: 100%;">
+        <img data-toggle="tooltip" title="{{ Name }}" src="{% static 'Images/info-button.png' %}" style="width: 25px; height: 25px;"></img>
+        <button class="btn unbuttonize" id="add-task-modal-btn"><img src="{% static 'Images/plus.png' %}"style="width: 25px; height: 25px;"></img></button>
+        <button class="btn custom-button" id="save-board-btn" style="float: right; background-color: darkred;">Save</button>
+    </div>
+
+    <!-- Body -->
+    <div class="container-fluid" style="width: 100%; padding: 0px;">
+        <div class="row flex-row flex-sm-nowrap" id="buckets-container">
+            <!-- Buckets -->
+            {% for bucketName, style in BucketNames.items %}
+            <div class="col flex-col bucket-col">
+                <div class="card kanban-card">
+                    <div class="card-body">
+                        <h6 class="card-title text-center text-uppercase bucket-titles text-truncate py-2 bucket-name" id="{{ style }}">{{ bucketName }}</h6>
+                        <div class="items border border-light bucket-container">
+                            <div class="dropzone-location"></div>
+                            <div class="dropzone rounded" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="clearDrop(event)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+
+<script>
+    $(document).ready(function() {
+        $("[data-toggle='tooltip']").tooltip();
+    });
+</script>
+
+{% endblock %}

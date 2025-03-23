@@ -1,0 +1,71 @@
+.widget-myTasks {
+    border-radius: 15px;
+    background-color: #fdfdfd; /* Light teal to complement the sidebar */
+    padding: 20px;
+    font-family: inherit;
+    border: 1.3px solid rgba(0,0,0,.3);
+    display: flex;
+    align-items:start;
+}
+
+
+.widget-myTasks h1 {
+    color: #000000; /* Darker teal to match the sidebar and add contrast */
+    font-size: 1.3em;
+    margin-bottom: 15px;
+    font-weight: bolder;
+}
+
+#tasksTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#tasksTable thead {
+    color: #000000; /* Black header text */
+}
+
+#tasksTable th, #tasksTable td {
+    padding: 10px 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    font-size: 1rem;
+    text-align: center;
+    
+}
+
+#tasksTable tbody tr:hover {
+    background-color: #78909c; /* Darker greyish-blue for hover effect */
+}
+
+#tasksTable tbody tr:nth-child(even) {
+    background-color: #607d8b; /* Darker alternating row colors */
+}
+
+#tasksTable td {
+    color: #000000; /* White text to contrast the darker background */
+}
+
+/* Priority Styling */
+.priority-circle {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.low-priority {
+    background-color: #5CAD5C;
+}
+
+.medium-priority {
+    background-color: #D6AD33;
+}
+
+.high-priority {
+    background-color: #D68533;
+}
+
+.urgent-priority {
+    background-color: #D65C5C;
+}

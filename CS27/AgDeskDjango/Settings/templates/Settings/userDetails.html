@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+
+<link rel="stylesheet" href="{% static 'teamDetails.css' %}">
+
+<br>
+
+<div style="display: flex; justify-content: left;">
+    <h1>User Details</h1>
+</div>
+
+<br>
+
+<div style="justify-content: left; width: 40%">
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert {{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <form class="teamDetailsForm" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="mb-4">
+            <h4> {{user.user.first_name}} {{user.user.last_name}}</h4>
+
+            <br>
+
+            {{form.role.label}}
+            {{form.role}}
+
+            {{form.jobTitle.label}}
+            {{form.jobTitle}}
+            
+            {{form.workingLocation.label}}
+            {{form.workingLocation}}  
+
+            {{form.is_active.label}}
+            {{form.is_active}}
+        </div>
+
+        <!-- <div class="mb-4">
+            <h4>Security Group Membership</h4>
+            {{form.groups.label}}
+            {{form.groups}}
+        </div> -->
+    
+        <button type="submit" class="btn custom-button">Update</button>
+    </form> 
+</div>
+
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block webpageContent %}
+{% load crispy_forms_tags %}
+
+<head>
+    <link rel="stylesheet" href="../../static/tasks.css" media="all" type="text/css">
+    <script>
+        function updateTaskID(targTaskID, targTaskName, targTaskDescription, targAssignedMember, targDueDate) {
+            //Get Task Details and store them locally.
+            //Enables them to be used for form autofill.
+            localStorage.setItem("targetTaskID", targTaskID)
+            localStorage.setItem("targetTaskName", targTaskName)
+            localStorage.setItem("targetTaskDescription", targTaskDescription)
+            localStorage.setItem("targetTaskAssignedMember", targAssignedMember)
+
+            document.cookie = "targetTaskID=" + targTaskID;
+
+            //convert Month String to a number.
+            const monthCollection = [
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December"
+            ]
+
+            let convertedMonthValue = 0;
+            dueDateMonth = targDueDate.split(" ")[0];
+
+            //comma follows date in the input format, splits on the leading space, then the trailing comma.
+            //example of date format: May 23, 2024.
+            dueDateDay = targDueDate.split(" ")[1].split(",")[0];
+            dueDateYear = targDueDate.split(" ")[2];
+            for (currentMonth = 0; currentMonth <= 12; currentMonth++) {
+                if (dueDateMonth == monthCollection[currentMonth]) {
+                    //add one to value due to zero based indexing.
+                    convertedMonthValue = currentMonth + 1;
+                }
+            }
+            let dateString = `${dueDateDay}-${convertedMonthValue}-${dueDateYear}`;
+
+            localStorage.setItem("targetTaskDueDate", dateObject);
+            document.getElementById("editTaskDueDate").value = localStorage.getItem("targetTaskDueDate");
+
+        }
+    </script>
+</head>
+
+
+<div class="modal fade" id="taskCreationModal" tabindex="-1" role="dialog" aria-labelledby="taskCreationModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="taskCreationModalLabel">New Task</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% crispy creationForm %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if creationForm.errors %}
+    <script>
+        // Remove fade class and show modal
+        var modalElement = document.getElementById("taskCreationModal");
+        modalElement.classList.remove("fade");
+        var modal = new bootstrap.Modal(modalElement);
+        modal.show();
+
+        function closeModal() {
+            modal.hide();
+        }
+    </script>
+{% endif %}
+
+
+<div class="taskContainer">
+    <div class="row">
+        <h2> My Tasks </h2>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert {{ message.tags }}" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        <div style="width: 100%;">
+            <button type="button" class="btn custom-button" data-toggle="modal" data-target="#taskCreationModal" style="float:right; margin-bottom: 5px; margin-right: 5px;">
+                Create New Task
+            </button>
+        </div>
+    </div>
+</div>
+
+<table class="table" id="taskTable">
+    <thead id="taskTableHead">
+        <tr>
+            <th class="taskTableHeading">Task Title</th>
+            <th class="taskTableHeading">Assigned To</th>
+            <th class="taskTableHeading">Task Description</th>
+            <th class="taskTableHeading">Status</th>
+            <th class="taskTableHeading">Due Date</th>
+        </tr>
+    </thead>
+    <tbody id="taskTableBody">
+        {% for Task in TaskData %}
+        <tr onclick="updateTaskID('{{Task.taskID}}', '{{Task.name}}', '{{Task.description}}', '{{Task.assignedTo}}', '{{Task.dueDate}}')"
+            class="taskTableRow" id="modifyTaskModal">
+            <td id="taskTableData">
+                <a href="{% url 'update_task' Task.taskID %}">{{Task.name}}</a>
+            </td>
+            <td id="taskTableData">
+                <a href="{% url 'update_task' Task.taskID %}">{{username}}</a>
+            </td>
+            <td id="taskTableData">
+                <a href="{% url 'update_task' Task.taskID %}">{{Task.description}}</a>
+            </td>
+            <td id="taskTableData">
+                <a href="{% url 'update_task' Task.taskID %}">{{Task.status}}</a>
+            </td>
+            <td id="taskTableData">
+                <a href="{% url 'update_task' Task.taskID %}">{{Task.dueDate}}</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

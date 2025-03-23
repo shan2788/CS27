@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block webpageContent %}
+{% load crispy_forms_tags %}
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert {{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Asset Tab Content Config-->
+<div style="width: 50%;">
+    <div class="tab-content" id="myTabContent">
+        <!-- Config for Asset Details form rendering -->
+        <div class="tab-pane fade show active" id="updateTaskForm" role="tabpanel" aria-labelledby="update-task">
+            <br>
+            <form method="post">
+                {% csrf_token %}
+                {% crispy updateForm %}
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

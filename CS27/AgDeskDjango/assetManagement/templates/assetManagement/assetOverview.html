@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+{% load crispy_forms_tags %}
+
+<!-- Import Stylesheet -->
+<link rel="stylesheet" href="{% static 'tableStyling.css' %}">
+
+<!-- Header -->
+<h2> {{ assetLabel }} </h2>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert {{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- "Add asset" button opens modal form to put in asset details -->
+<div style="width: 100%;">
+    <button class="btn custom-button" style="float: right;" data-bs-toggle="modal" data-bs-target="#newAsset">New Asset</button>
+</div>
+
+<br>
+
+
+
+<!-- Modal which conditionally appears when the user selects terms and conditions -->
+<div class="modal fade" id="newAsset" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">New Asset</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="closeModal()"></button>
+            </div>
+            <div class="modal-body">           
+                <div class="container">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div>
+                            {% crispy assetForm %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 
+
+{% if assetForm.errors %}
+    <script>
+        // Remove fade class and show modal
+        var modalElement = document.getElementById('newAsset');
+        modalElement.classList.remove('fade');
+        var modal = new bootstrap.Modal(modalElement);
+        modal.show();
+
+        function closeModal() {
+            modalElement.classList.add('fade');
+            modal.hide();
+        }
+    </script>
+{% endif %}
+
+
+<!-- Check Out Modal -->
+<div class="modal fade" id="checkout" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">Check Out</h4>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="container">
+                    <form method="post" action="/operations/checkout" enctype="multipart/form-data" id="form-container">
+                        {% csrf_token %}
+
+                        <input type="hidden" name="assetID" id="id_assetID" value="0">
+                        <div class="mb-3">
+                            {{ checkoutForm.location.label }}
+                            {{ checkoutForm.location }}
+                        </div>
+                        <div class="mb-3">
+                            {{ checkoutForm.notes.label }}
+                            {{ checkoutForm.notes }}
+                        </div>
+
+                        <!-- Footer -->
+                        <div style="width: 100%;">
+                            <button type="button" class="btn btn-secondary" style="float: left;" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn custom-button" style="float: right;" name="checkout">Confirm</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Table that displays assets from the assetList (displayAssets view) -->
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th scope="col">Asset Name</th>
+            <th scope="col">Manufacturer</th>
+
+            {% if assetCategory == 'LV' or assetCategory == 'HV' %}
+                <th scope="col">Registration</th>
+            {% elif assetCategory == 'SE' %}
+                <th scope="col">Serial Number</th>
+            {% else %}
+                <th scope="col">VIN Number</th>
+            {% endif %}
+
+            <th scope="col">Location</th>
+            <th></th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for asset in assetList %}
+            <tr onclick="{go_to_asset_url('{{ assetCategory }}','{{ asset.assetID }}', 'details')}" class="userRowHeight"> 
+                <td><a class="asset_detail">{{ asset.assetName }}</a></td>
+                <td><a class="asset_detail">{{ asset.Manufacturer }}</a></td>
+
+                {% if assetCategory == 'LV' or assetCategory == 'HV' %}
+                    <td><a class="asset_detail">{{ asset.Registration }}</a></td>
+                {% elif assetCategory == 'SE' %}
+                    <td><a class="asset_detail">{{ asset.serialNumber }}</a></td>
+                {% else %}
+                    <td><a class="asset_detail">{{ asset.vin }}</a></td>
+                {% endif %}
+
+                <td><a class="asset_detail">{{ asset.Location }}</a></td>
+
+                <td style="display: flex; justify-content: right;">
+                    <a href="{% url 'assetDetails' assetCategory=assetCategory assetID=asset.assetID %}">
+                        <img style="max-width:33px; max-height:33px; margin-right: 10px;" src="{% static 'Images/editIcon.png' %}">
+                    </a>
+                    {% if asset.opStatus %}
+                        <p>Unavailable</p> </td>
+                    {% else %}
+                        <button data-bs-toggle="modal" class="btn custom-button" data-bs-target="#checkout"
+                        onclick="event.stopPropagation(); document.getElementById('id_assetID').setAttribute('value', '{{ asset.assetID }}')"
+                        >Check Out</button>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,216 @@
+/* Full Page Layout */
+#topOfPage {
+    max-width: 100%;
+    margin: 0;
+}
+
+#topOfPage .col {
+    width: 100%;
+    padding: 0;
+}
+
+#bottomOfPage {
+    min-height: calc(100vh - 83px);
+    margin-top: 83px;
+    width: 100%;
+}
+
+/* Top Menu Navigation */
+#topNavBar {
+    padding-right: 25px;
+    background-color: #124559;
+}
+
+#logoContainer {
+    padding: 0;
+    margin: 0;
+}
+
+#logo {
+    width: 40px;
+    margin: 10px;
+}
+
+#topNavBar .navbar-brand {
+    color: white;
+    font-size: 30px;
+    font-weight: bold;
+    padding-left: 5px;
+}
+
+#search {
+    width: 20px !important;
+    margin: 0 !important;
+}
+
+#navUtil img {
+    width: 30px;
+    margin: 10px;
+}
+
+#searchbutton {
+    margin-right: 10px;
+}
+
+/* Side Menu Navigation */
+#sidebar-column {
+    background-color: #124559;
+    width: 10rem;
+    height: 100vh;
+    padding-top: 15px;
+    position: fixed;
+    z-index: 2;
+    font-size: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+
+#sidebar-menu-top,
+#sidebar-menu-bottom {
+    width: 100%;
+}
+
+#sidebar-menu-top ul,
+#sidebar-menu-bottom ul {
+    padding: 0;
+    margin: 0;
+    list-style-type: none;
+}
+
+.sidebar-item {
+    margin-bottom: 10px;
+}
+
+.sidebar-item span {
+    font-size: 18px;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    color: white;
+    text-decoration: none;
+    padding: 10px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.sidebar-link:hover,
+#dropdownNav:hover,
+#settings:hover {
+    background-color: #196482;
+    color: white;
+    text-decoration: none;
+}
+
+.sidebar-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+}
+
+.sidebar-link span {
+    flex-grow: 1;
+}
+
+.fa-chevron-down {
+    transition: transform 0.3s;
+}
+
+.sidebar-link[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+#sidebar-menu-top ul ul {
+    padding-left: 15px;
+}
+
+#sidebar-menu-top ul ul li {
+    margin-bottom: 5px;
+}
+
+#sidebar-menu-top ul ul a {
+    color: #e0e0e0;
+    text-decoration: none;
+    font-size: 1em;
+}
+
+#sidebar-menu-top ul ul a:hover {
+    color: white;
+}
+
+/* Central Page */
+#CentralPage {
+    margin: 25px 35px 25px 11rem;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-left: 5px;
+}
+
+/* Utility Classes */
+.custom-button { 
+    color: white; 
+    background-color: #598392; 
+    border-color: #598392; 
+    max-width: max-content; 
+} 
+
+.custom-button:hover { 
+    color: white; 
+    background-color: #749BAA; 
+    border-color: #749BAA; 
+} 
+
+.same-height-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.card-img-top {
+    width: 100%;
+    height: 10vw;
+    object-fit: cover;
+}
+
+.widget-delete-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #ff0000;
+    background-color: #ffffff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    line-height: 20px;
+    z-index: 2;
+}
+
+.widget-delete-btn:hover {
+    background-color: #ff0000;
+    color: #ffffff;
+}
+
+.pointable:hover {
+    cursor: pointer;
+}
+
+.userRowHeight:hover {
+    --bs-table-bg: #C2D3DA;
+    cursor: pointer;
+}
+
+/* Gridster specific */
+.gridster .gs-w {
+    z-index: 1;
+}
+
+#username {
+    padding: 4px 16px;
+}

@@ -1,0 +1,16 @@
+.teamImg{
+  max-width:40px;
+  max-height:40px;
+}
+
+td a {
+  display: block;
+  color: black;
+  text-decoration: none;
+}
+
+td a:hover {
+  display: block;
+  color: black;
+  text-decoration: none;
+}

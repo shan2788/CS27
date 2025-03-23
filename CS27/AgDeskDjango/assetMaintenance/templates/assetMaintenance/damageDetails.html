@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+{% load crispy_forms_tags %}
+
+<link rel="stylesheet" href="{% static 'tableStyling.css'%}">
+
+<h2> {{ currentAsset.assetName }}</h2>
+
+{% if assetCategory == 'LV' or assetCategory == "HV" %}
+    <p> Registration: {{currentAsset.Registration}} </p>
+{% endif %}
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert {{ message.tags }}" role="alert">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Asset Tab Menu Config -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-link">
+        <a href="{% url 'assetDetails' assetCategory=assetCategory assetID=currentAsset.assetID %}">Details</a>
+    </li>
+    <li class="nav-link"> 
+        <a href = "{% url 'assetMaintenance' assetCategory=assetCategory assetID=currentAsset.assetID %}">Maintenance</a>
+    </li>
+    <li class="nav-link active">
+        <a href = "{% url 'assetDamage' assetCategory=assetCategory assetID=currentAsset.assetID %}">Damage</a>
+    </li>
+    <li class="nav-link">
+        <a href = "{% url 'assetExpenses' assetCategory=assetCategory assetID=currentAsset.assetID %}">Expenses</a>
+    </li>
+    <li class="nav-link">
+        <a href = "{% url 'assetLogs' assetCategory=assetCategory assetID=currentAsset.assetID %}">Logs</a>
+    </li>
+</ul>
+
+{% if maintenanceRecord != None %}
+<br>
+<p style="font-weight: bolder;"> This damage is resolved: 
+    <a href ="{% url 'assetMaintenanceDetails' assetCategory=assetCategory assetID=damageRecord.assetID_id maintenanceID=maintenanceRecord.maintenanceID%}">
+        {{maintenanceRecord.maintenanceTasksCompleted}} ({{maintenanceRecord.completionDate}})</a></p>
+{% else %}
+<br>
+{% endif %}
+
+<!-- Asset Tab Content Config-->
+<div class="tab-content" id="myTabContent">
+    <!-- Config for Asset Details form rendering -->
+    <div class="tab-pane fade show active" id="assetDetails" role="tabpanel" aria-labelledby="asset-details">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% crispy form %}
+        </form>
+    </div>
+</div>
+
+{% endblock %}

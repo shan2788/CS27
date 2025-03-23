@@ -1,0 +1,240 @@
+.heading {
+    padding-left: 0px;
+}
+
+
+.col-xl-8 {
+    padding-right: 5px;
+    padding-left: 10px;
+}
+
+.status-label {
+    padding-right:10px;
+}
+.col-xl-4 p {
+    margin-bottom: 0;
+}
+
+.card-body {
+    padding: 10px;
+}
+
+.task-title {
+    margin-bottom: 7px;
+}
+
+.task-description {
+    margin-bottom: 10px;
+}
+
+.nav-pills .nav-link.active, .nav-pills .show>.nav-link{
+    background-color: #598392;
+    color: white;
+}
+
+.nav-pills .nav-link, .nav-pills .show>.nav-link{
+    color: #666666;
+}
+
+
+/* Card Priority Styling */
+
+/* Urgent Priority */
+.urgent-priority-row {
+    margin-bottom: 15px;
+}
+
+.urgent-priority-header{
+    padding-left: 2px;
+}
+
+.urgent-priority-header span{
+    background-color: rgba(204, 51, 51, 0.8);
+    padding: 2px 10px;
+    color: #fff;
+    display: inline-block;
+    font-size: 12px;
+}
+
+.urgent-priority-card {
+    border-left: 2px solid rgba(204, 51, 51, 0.8);
+}
+
+/* High Priority */
+.high-priority-row {
+    margin-bottom: 15px;
+}
+
+.high-priority-header{
+    padding-left: 2px;
+}
+
+.high-priority-header span{
+    background-color: rgba(204, 102, 0, 0.8);
+    padding: 2px 10px;
+    color: #fff;
+    display: inline-block;
+    font-size: 12px;
+}
+
+.high-priority-card {
+    border-left: 2px solid rgba(204, 102, 0, 0.8);
+}
+
+/* Medium Priority */
+.medium-priority-row {
+    margin-bottom: 15px;
+}
+
+.medium-priority-header{
+    padding-left: 2px;
+}
+.medium-priority-header span{
+    background-color: rgba(204, 153, 0, 0.8);
+    padding: 2px 10px;
+    color: #fff;
+    display: inline-block;
+    font-size: 12px;
+}
+
+.medium-priority-card {
+    border-left: 2px solid rgba(204, 153, 0, 0.8);
+}
+
+/* Low Priority */
+.low-priority-row {
+    margin-bottom: 15px;
+}
+
+.low-priority-header{
+    padding-left: 2px;
+}
+.low-priority-header span{
+    background-color: rgba(51, 153, 51, 0.8);
+    padding: 2px 10px;
+    color: #fff;
+    display: inline-block;
+    font-size: 12px;
+}
+
+.low-priority-card {
+    border-left: 2px solid rgba(51, 153, 51, 0.8);
+}
+
+/* Divider Line Styling */
+.today-divider {
+    border-top: 1px solid #8c8b8b;
+    margin-bottom: 10px;
+}
+
+/* Status Indicator Styling */
+.not-started-circle {
+    background-color: #A0A0A0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.in-progress-circle {
+    background-color: #0066CC;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.blocked-circle {
+    background-color: #CC3333;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.review-circle {
+    background-color: #009999;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.complete-circle {
+    background-color: #66CC66;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Complete Button Styling */
+
+#complete {
+    border: none;
+    background: inherit;
+    margin-top: 15px;
+}
+#complete img{
+    width: 15px;
+}
+
+/* Document Review Styling */
+.doc-review-category-row {
+    margin-bottom: 15px;
+}
+
+.doc-review-category-header {
+    padding-left: 2px;
+}
+
+.overdue-style span{
+    background-color: rgba(204, 51, 51, 0.8);
+    padding: 2px 10px;
+    color: #fff;
+    display: inline-block;
+    font-size: 12px;
+}
+
+.due-soon-style span{
+    background-color: rgba(204, 102, 0, 0.8);
+    padding: 2px 10px;
+    color: #fff;
+    display: inline-block;
+    font-size: 12px;
+}
+
+.upcoming-style span{
+    background-color: rgba(204, 153, 0, 0.8);
+    padding: 2px 10px;
+    color: #fff;
+    display: inline-block;
+    font-size: 12px;
+}
+
+.this-month-style span{
+    background-color: rgba(51, 153, 51, 0.8);
+    padding: 2px 10px;
+    color: #fff;
+    display: inline-block;
+    font-size: 12px;
+}
+#overdue-style {
+    border-left: 2px solid rgba(204, 51, 51, 0.8);
+}
+
+#due-soon-style {
+    border-left: 2px solid rgba(204, 102, 0, 0.8);
+}
+
+#upcoming-style {
+    border-left: 2px solid rgba(204, 153, 0, 0.8);
+}
+
+#this-month-style{
+    border-left: 2px solid rgba(51, 153, 51, 0.8);
+}
+
+.download{
+    width: 20px;
+}

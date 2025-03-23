@@ -1,0 +1,7 @@
+<div class="d-flex justify-content-between text-center align-items-center px-3" style="height:100%;">
+        <div class="flex-column weather-column" rv-each-item="data">
+          <p class="small"><strong><img class="temp-arrows" src="/static/Images/upArrowRed.png">{ item.value.maxTemp }° <img class="temp-arrows" src="/static/Images/downArrowBlue.png">{ item.value.minTemp }°</strong></p>
+          <img class="weather-icon" rv-src="item.value.weatherIcon">
+          <p class="mb-0"><strong>{ item.label }</strong></p>
+        </div>         
+</div>

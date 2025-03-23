@@ -1,0 +1,48 @@
+.widget-myCheckouts {
+    border-radius: 15px;
+    background-color: #fdfdfd; /* Light teal to complement the sidebar */
+    padding: 20px;
+    font-family: inherit;
+    border: 1px solid rgba(0,0,0,.3);
+    display: flex;
+    align-items:start;
+}
+
+.widget-myCheckouts h1 {
+    color: #000000; /* Darker teal to match the sidebar and add contrast */
+    font-size: 1.3em;
+    margin-bottom: 15px;
+    font-weight: bolder;
+}
+
+#checkoutsTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#checkoutsTable thead {
+    color: #000000; /* Black header text */
+}
+
+#checkoutsTable th, #checkoutsTable td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    font-size: 1rem;
+}
+
+#checkoutsTable tbody tr:hover {
+    background-color: #78909c; /* Darker greyish-blue for hover effect */
+}
+
+#checkoutsTable tbody tr:nth-child(even) {
+    background-color: #607d8b; /* Darker alternating row colors */
+}
+
+#checkoutsTable td {
+    color: #000000; /* White text to contrast the darker background */
+}
+
+
+
+

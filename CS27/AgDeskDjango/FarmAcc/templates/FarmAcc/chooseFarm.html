@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block webpageContent %} 
+<h2> Welcome! </h2>
+<br>
+<div class="row">
+    {% for farm in farms %}
+        <div class="col-sm-3">
+            <div class="card same-height-card" style="width: 18rem;">
+                <img src="{{farm.farm_image.url}}" class="card-img-top">
+                <div class="card-body">
+                    <h5 class="card-title">{{farm.farm_name}}</h5>
+                    <p class="card-text">{{farm.farm_bio}}</p>
+                    <p class="card-text">{{farm.farm_street}}, {{farm.farm_state}}, {{farm.farm_postcode}}</p>
+                    <a href="{% url 'home' farm_id=farm.id%}" class="btn custom-button">Open Farm</a>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

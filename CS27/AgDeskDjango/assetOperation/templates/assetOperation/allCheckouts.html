@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+{% load crispy_forms_tags %}
+
+<link rel="stylesheet" href="{% static 'tableStyling.css' %}">
+
+<h2>All Checked Out</h2>
+
+<!-- Asset Tab Menu Config -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="SE-tab" data-bs-toggle="tab" data-bs-target="#SE" type="button" role="tab" aria-controls="SE" aria-selected="true">Small Equipment</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="LE-tab" data-bs-toggle="tab" data-bs-target="#LE" type="button" role="tab" aria-controls="LE" aria-selected="true">Large Equipment</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="LV-tab" data-bs-toggle="tab" data-bs-target="#LV" type="button" role="tab" aria-controls="LV" aria-selected="true">Light Vehicle</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="HV-tab" data-bs-toggle="tab" data-bs-target="#HV" type="button" role="tab" aria-controls="HV" aria-selected="true">Heavy Vehicle</button>
+    </li>
+</ul>
+
+
+<!-- Tabs -->
+<div class="tab-content" id="MyTabContent">
+    {% for logs, prefix in assetLogs %}
+    <!-- Tab Content for {{ prefix }} table-->
+    <div class="tab-pane fade {% if prefix == 'SE' %} show active {% endif %}" id="{{ prefix }}" role="tabpanel" aria-labelledby="{{ prefix }}-tab">
+        <br>
+        <!-- Log Table -->
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>User</th>
+                    <th>Taken</th>
+                    <th>Location</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for log in logs %}
+                <tr onclick="{go_to_asset_url('{{ log.assetPrefix }}','{{ log.assetID }}', 'details')}" class="userRowHeight"> 
+                    {% autoescape on %}
+                    <td><a class="asset_detail">{{ log.assetName }}</a></td>
+                    <td><a class="asset_detail">{{ log.userName }}</a></td>
+                    <td><a class="asset_detail">{{ log.startDateTime }}</a></td>
+                    <td><a class="asset_detail">{{ log.location }}</a></td>
+                    <td><a class="asset_detail" title="{{ log.notes }}">{{ log.notesHead }}</a></td>
+                    {% endautoescape %}
+                </tr>
+            <!-- If nothing in category -->
+            {% empty %}
+                <tr><td colspan="100%">Nothing checked out</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

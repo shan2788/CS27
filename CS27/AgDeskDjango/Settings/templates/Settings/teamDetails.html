@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+
+<link rel="stylesheet" href="{% static 'teamDetails.css' %}">
+
+<br>
+
+<div style="display: flex; justify-content: left;">
+    <img style="  max-width:80px; max-height:80px;" src="{% static 'Images/Team_Admin.jpg'%}">
+    <h1>Team Details</h1>
+</div>
+
+<br>
+
+{% comment %} <div class="container"> {% endcomment %}
+
+<div style="justify-content: left; width: 50%">
+    <form class="teamDetailsForm" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="mb-4">
+            {{form.teamName.label}}
+            {{form.teamName}}
+        </div>
+
+        <div class="mb-4">
+            {{form.teamDescription.label}}
+            {{form.teamDescription}}
+        </div>
+        
+        <div class="mb-4">
+            {{form.active.label}}
+            {{form.active}}
+        </div>
+
+        <div class="mb-4 custom-file">
+            <input type="file" class="custom-file-input" name="{{form.teamImage.name}}">
+            <label class="custom-file-label" for="{{form.teamImage.name}}">Currently {{form.teamImage.value.name}}</label>
+        </div>
+
+        <div class="mb-4" style="max-height: 200px; overflow-y: auto;">
+            {{form.userList.label}}
+            {{form.userList}}
+        </div>
+
+        <button class="btn custom-button" type="submit">Update</button>
+    </form>
+    {{form.errors}}  
+</div>
+
+{% endblock %}

@@ -1,0 +1,72 @@
+.card.draggable {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    cursor: grab;
+}
+
+.dropsone {
+    min-height: 2px;
+    max-height: 2px;
+    margin-bottom: 1rem;
+}
+
+.droppable-hint {
+    min-height: 10px;
+    max-height: 20px;
+    background-color: #ededed;
+}
+
+.droppable {
+    background-color: #90ee90;
+    min-height: 120px;
+}
+
+.kanban-card {
+    --bs-card-border-color: none;
+    border: none;
+}
+
+.bucket-titles {
+    border-radius: 25px;
+}
+
+#notStarted {
+    background-color: rgba(173, 172, 172, 0.5);
+}
+
+#inProgress {
+    background-color: rgba(93, 150, 224, 0.5);
+}
+
+#blocked {
+    background-color: rgba(238, 116, 102, 0.5);
+}
+
+#review {
+    background-color: rgba(240, 166, 81, 0.5);
+}
+
+#complete {
+    background-color: rgba(74, 175, 118, 0.5);
+}
+
+.kanban-card-delete-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    cursor: pointer;
+    font-size: 18px;
+    color: #ff0000;
+    background-color: #ffffff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    text-align:center;
+    line-height: 20px;
+    z-index: 2;
+}
+
+.kanban-card-delete-btn:hover {
+    background-color: #ff0000;
+    color: #ffffff;
+}

@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+{% load crispy_forms_tags %}
+
+<!-- Asset Tab Menu Config -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-link">
+        <a href="{%  url 'profileUpdate' %}">My Profile</a>
+    </li>
+    <li class="nav-link active"> 
+        <a href = "{% url 'manage_farms' %}">Manage Farms</a>
+    </li>
+</ul>
+
+<br>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert {{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<br>
+
+<!-- Asset Tab Content Config -->
+<div class="tab-content" id="myTabContent">
+    <!-- Config for Operation Logs table rendering -->
+    <div class="tab-pane fade show active" id="assetDetails" role="tabpanel" aria-labelledby="asset-details">
+        <table class="table table-however">
+            <thead>
+                <tr>
+                    <th scope='col'>Farm Name</th>
+                    <th scope='col'>Job Title</th>
+                    <th scope='col'>Active?</th>
+                    <th scope="col" style=" display: flex; justify-content: right;">
+                        <button data-bs-toggle="modal" data-bs-target="#newFarm" class="btn custom-button" name="newFarm" style="margin-right: 10px;">Create Farm</button>
+                        <button data-bs-toggle="modal" data-bs-target="#joinFarm" class="btn custom-button" name="joinFarm">Join Farm</button>
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+            </tr> <!-- What is this for? -->
+                {% for farm in farm_list %}
+                    <tr>
+                        <td><a class="asset_detail">{{farm.farm.farm_name}}</a></td>
+                        <td><a class="asset_detail">{{farm.jobTitle}}</a></td>
+                        <td><a class="asset_detail">{{farm.is_active}}</a></td>
+                        <td style="display: flex; justify-content: right;">
+                            <div style="margin-right: 10px;">
+                                {% if farm.farm_id == current_farm and farm.is_active == True %}
+                                    <p> Active Farm </p>
+                                {% elif farm.is_active == False %}
+                                    <p> Inactive Farm </p>
+                                {% else %}
+                                    <a href="{% url 'switch_farm' farm_id=farm.farm_id %}">
+                                        <button class="btn custom-button" name = "switchFarm" 
+                                        onclick="return confirm('Are you sure you want to switch to this farm?')">Switch</button>
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                            <a href="{% url 'remove_farm' farm_id=farm.farm_id %}" onclick="return confirm('Are you sure you want to remove yourself from this farm?')">
+                                <img style="max-width:33px; max-height:33px;" src="{% static 'Images/chain_break.png' %}">
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal to enter linking code -->
+<div class="modal fade" tabindex="-1" role="dialog" id="joinFarm">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Join Farm</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="container">
+                    <form method="post" enctype="multipart/form-data" id="form-container">
+                        {% csrf_token %}
+
+                        <input type="hidden" name="assetID" id="id_assetID" value="0">
+                        <div class="mb-3">
+                            {{ joinFarmForm.linking_code.label}}
+                            {{ joinFarmForm.linking_code }}
+                        </div>
+
+                        <!-- Footer -->
+                        <div style="width: 100%;">
+                            <button type="button" class="btn btn-secondary" style="float: left;" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn custom-button" style="float: right;" name="joinFarm">Join Farm</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal to create new farm -->
+<div class="modal fade" tabindex="-1" role="dialog" id="newFarm">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Farm</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {{ newFarmForm.farm_name|as_crispy_field }}
+                    {{ newFarmForm.farm_street|as_crispy_field }}
+
+                    <div class = "row">
+                        <div class="col-md-6">
+                            {{ newFarmForm.farm_state|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ newFarmForm.farm_postcode|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    {{ newFarmForm.farm_bio|as_crispy_field }}
+                    {{ newFarmForm.farm_image|as_crispy_field }}
+
+                    <div style="width: 100%;">
+                        <button type="button" class="btn btn-secondary" style="float: left;" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn custom-button" style="float: right;" name="newFarm">Create Farm</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

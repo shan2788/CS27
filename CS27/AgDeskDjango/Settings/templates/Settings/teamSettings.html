@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+
+<!-- Import necessary stylesheets -->
+<link rel="stylesheet" href="{% static "teamSettings.css"%}">
+
+<div style="width: 100%;">
+    <button class="btn custom-button" style="float: right;" data-bs-toggle="modal" data-bs-target="#termsAndCond">Add Team</button>
+</div>
+
+<!-- Modal which conditionally appears when the user selects terms and conditions -->
+<div class="modal fade" id="termsAndCond" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">Add Team</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">           
+                <div class="container">
+                    <form class="teamDetailsForm" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                
+                        <div class="mb-4">
+                            {{form.teamName.label}}
+                            {{form.teamName}}
+                        </div>
+            
+                        <div class="mb-4">
+                            {{form.teamDescription.label}}
+                            {{form.teamDescription}}
+                        </div>
+                        
+                        <div class="mb-4">
+                            {{form.active.label}}
+                            {{form.active}}
+                        </div>
+            
+                        <div class="mb-4 custom-file">
+                            <input type="file" class="custom-file-input" name="{{form.teamImage.name}}">
+                            <label class="custom-file-label" for="{{form.teamImage.name}}">Currently {{form.teamImage.value.name}}</label>
+                        </div>
+
+                        <div style="width: 100%;">           
+                            <button type="button" class="btn btn-secondary" style="float: left;" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn custom-button" style="float: right;">Create Team</button>
+                        </div>
+                    </form>
+                    {{form.errors}}  
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<br>
+
+<!-- Display a list of Users -->
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th></th>
+            <th scope="col">Team ID</th>
+            <th scope="col">Team Name</th>
+            <th scope="col">Team Description</th>
+            <th scope="col">Active</th>
+            <th scope="col"></th>
+        </tr>
+    </thead>
+
+    <tbody>
+        </tr> <!-- Purpose? -->
+        {% for internalTeam in teamList %}
+            <tr onclick="{go_to_team_url('{{ internalTeam.id }}')}" class="userRowHeight">
+                <td><img class="teamImg" src={{internalTeam.teamImage.url}}></td>
+                <td><a class="team_detail">{{internalTeam.id}}</a></td>
+                <td><a class="team_detail">{{internalTeam.teamName}}</a></td>
+                <td><a class="team_detail">{{internalTeam.teamDescription}}</a></td>
+                <td><a class="team_detail">{{internalTeam.active}}</a></td>
+                <td style="display: flex; justify-content: right;">
+                    <a href="{% url 'delete_team' internalTeam.id %}" onclick="return confirm('Are you sure you want to delete this item?')"><img class="teamImg" src="{% static 'Images/bin.png'%}"></a>
+                    <a href="{% url 'team_details' internalTeam.id %}"><img style="  max-width:33px; max-height:33px;" src="{% static 'Images/editIcon.png'%}"></a>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block webpageContent %}
+
+<!-- Head -->
+<head>
+    <link rel="stylesheet" href="/static/tasks.css">
+    <script>
+        function updateCurrentKanban(dest, curKanbanID) {
+            document.cookie=`curKanbanID=${curKanbanID}`;
+            window.location.href = dest;
+        }
+    </script>
+</head>
+
+<!-- New Kanban Board Modal -->
+<div class="modal fade" id="newKanbanModal" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">New Kanban Board</h4>
+            </div>
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="container">
+                    <form method="post" enctype="multipart/form-data" id="form-container">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            {{ createKanbanForm.name.label }}
+                            {{ createKanbanForm.name }}
+                        </div>
+                        <!-- Footer -->
+                        <div style="width: 100%;">
+                            <button type="button" class="btn btn-secondary" style="float: left;" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn custom-button" style="float: right;" name="createKanbanForm">Create</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Messages -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert {{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Body -->
+<div>
+    <div id="createTaskButton">
+        <button data-bs-toggle="modal" class="btn custom-button" data-bs-target="#newKanbanModal">
+            Create New Kanban Board
+        </button>
+    </div>
+
+    <br>
+
+    <table class="table" id="taskTable">
+        <thead id="taskTableHead">
+            <tr>
+                <th class="taskTableHeading">Kanban Board Name</th>
+                <th class="taskTableHeading">Not Started</th>
+                <th class="taskTableHeading">In Progress</th>
+                <th class="taskTableHeading">Blocked</th>
+                <th class="taskTableHeading">Review</th>
+                <th class="taskTableHeading">Complete</th>
+                <th class="taskTableHeading"></th>
+            </tr>
+        </thead>
+
+        <tbody id="taskTableBody">
+            {% for kanbanID, name, status0, status1, status2, status3, status4 in Kanbans %}
+                <tr onclick="{updateCurrentKanban('/tasks/kanbanView', '{{ kanbanID }}')}" class="taskTableRow pointable">
+                    <td class="taskTableData">
+                        {{ name }}
+                    </td>
+                    <td class="taskTableData">
+                        {{ status0 }}
+                    </td>
+                    <td class="taskTableData">
+                        {{ status1 }}
+                    </td>
+                    <td class="taskTableData">
+                        {{ status2 }}
+                    </td>
+                    <td class="taskTableData">
+                        {{ status3 }}
+                    </td>
+                    <td class="taskTableData">
+                        {{ status4 }}
+                    </td>
+                    <td class="taskTableData">
+                        <form action="/tasks/deleteKanban" method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="kanbanID" value="{{ kanbanID }}">
+                            <button type="submit" class="btn btn-danger" name="deleteKanbanForm">X</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

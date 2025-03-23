@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+{% load crispy_forms_tags %}
+<link rel="stylesheet" href="{% static 'tableStyling.css'%}">
+
+<h2>{{assetName}}</h2>
+
+{% if assetPrefix == 'LV' or assetPrefix == "HV" %}
+<p> Registration: {{currentAsset.Registration}} </p>
+{% endif %}
+
+{% if messages%}
+    {% for message in messages %}
+    <div class="alert {{message.tags}}" role="alert">
+        {{message}}
+    </div>
+    {%endfor%}
+{% endif %}
+
+<!-- Asset Tab Menu Config -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-link">
+        <a href="{% url 'assetDetails' assetCategory=assetPrefix assetID=assetID %}">Details</a>
+    </li>
+    <li class="nav-link"> 
+        <a href = "{% url 'assetMaintenance' assetCategory=assetPrefix assetID=assetID %}">Maintenance</a>
+    </li>
+    <li class="nav-link">
+        <a href = "{% url 'assetDamage' assetCategory=assetPrefix assetID=assetID %}">Damage</a>
+    </li>
+    <li class="nav-link">
+        <a href = "{% url 'assetExpenses' assetCategory=assetPrefix assetID=assetID %}">Expenses</a>
+    </li>
+    <li class="nav-link active">
+        <a href = "{% url 'assetLogs' assetCategory=assetPrefix assetID=assetID %}">Logs</a>
+    </li>
+</ul>
+
+<!-- Asset Tab Content Config -->
+<div class="tab-content" id="myTabContent">
+    <!-- Config for Operation Logs table rendering -->
+    <div class="tab-pane fade show active" id="assetDetails" role="tabpanel" aria-labelledby="asset-details">
+        <table class="table table-however">
+            <thead>
+                <tr>
+                    <th scope='col'>Checked Out By</th>
+                    <th scope='col'>Start Time</th>
+                    <th scope='col'>End Time</th>
+                    <th scope='col'>Location</th>
+                    <th scope='col'>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tr> <!-- What is this for? -->
+                {% for log in logs %}
+                <tr>
+                    <td><a class="asset_detail">{{log.userName}}</a></td>
+                    <td><a class="asset_detail">{{log.startDateTime}}</a></td>
+                    <td><a class="asset_detail">{{log.endDateTime}}</a></td>
+                    <td><a class="asset_detail">{{log.location}}</a></td>
+                    <td><a class="asset_detail" title="{{ log.notes }}">{{ log.notesHead }}</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

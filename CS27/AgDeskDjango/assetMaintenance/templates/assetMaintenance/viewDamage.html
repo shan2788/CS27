@@ -1,0 +1,119 @@
+{%extends 'base.html'%}
+{%load static%}
+{%block webpageContent%}
+{%load crispy_forms_tags%}
+<link rel="stylesheet" href="{% static "tableStyling.css"%}">
+
+<h2>{{currentAsset.assetName}}</h2>
+{% if assetCategory == 'LV' or assetCategory == "HV" %}
+<p> Registration: {{currentAsset.Registration}} </p>
+{% endif %}
+
+{% if messages%}
+{% for message in messages %}
+<div class="alert {{message.tags}}" role="alert">
+    {{message}}
+</div>
+{%endfor%}
+{% endif %}
+
+<!-- Asset Tab Menu Config -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-link">
+        <a href="{% url 'assetDetails' assetCategory=assetCategory assetID=currentAsset.assetID %}">Details</a>
+    </li>
+    <li class="nav-link">
+        <a href="{% url 'assetMaintenance' assetCategory=assetCategory assetID=currentAsset.assetID %}">Maintenance</a>
+    </li>
+    <li class="nav-link active">
+        <a href="{% url 'assetDamage' assetCategory=assetCategory assetID=currentAsset.assetID %}">Damage</a>
+    </li>
+    <li class="nav-link">
+        <a href = "{% url 'assetExpenses' assetCategory=assetCategory assetID=currentAsset.assetID %}">Expenses</a>
+    </li>
+    <li class="nav-link">
+        <a href="{% url 'assetLogs' assetCategory=assetCategory assetID=currentAsset.assetID %}">Logs</a>
+    </li>
+</ul>
+
+<!-- Add Damage Modal -->
+<div class="modal fade" id="newDamage" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">New Damage Information</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="closeModal()"></button>
+            </div>
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="container">
+                    <form method="post" enctype="multipart/form-data" id="form-container">
+                        {% csrf_token %}
+                        {% crispy creationForm %}
+                        <!-- Footer -->
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if creationForm.errors %}
+<script>
+    // Remove fade class and show modal
+    var modalElement = document.getElementById('newDamage');
+    modalElement.classList.remove('fade');
+    var modal = new bootstrap.Modal(modalElement);
+    modal.show();
+
+    function closeModal() {
+        modalElement.classList.add('fade');
+        modal.hide();
+    }
+</script>
+{% endif %}
+
+<!-- Asset Tab Content Config -->
+<div class="tab-content" id="myTabContent">
+    <!-- Config for Damage Details form rendering -->
+    <div class="tab-pane fade show active" id="assetDetails" role="tabpanel" aria-labelledby="asset-details">
+        <table class="table table-however">
+            <thead>
+                <tr>
+                    <th scope='col'>Damage Type</th>
+                    <th scope='col'>Severity</th>
+                    <th scope='col'>Notes</th>
+                    <th scope='col'>Scheduled Maintenance Date</th>
+                    <th scope='col'>Status</th>
+                    <th scope='col'><button data-bs-toggle="modal" data-bs-target="#newDamage"
+                            class="btn custom-button">Record Damage</button></th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for damage in damageData %}
+                <tr onclick="{go_to_asset_url('{{ assetCategory }}','{{ asset.assetID }}', 'damage', damageID='{{ damage.damageID }}')}" class="userRowHeight">
+                    <td><a class="asset_detail">{{damage.damageType}}</a></td>
+                    <td><a class="asset_detail">{{damage.damageSeverity}}</a></td>
+                    <td><a class="asset_detail">{{damage.notes}}</a></td>
+                    <td><a class="asset_detail">{{damage.scheduledMaintenanceDate}}</a></td>
+                    <td><a class="asset_detail">{{damage.status}}</a></td>
+                    <td style="display: flex; justify-content: right;">
+                        <a class="asset_detail unbuttonize"
+                            href="{% url 'assetDamageDetails' assetCategory=assetCategory assetID=currentAsset.assetID damageID=damage.damageID%}"
+                            ><img style="  max-width:33px; max-height:33px;" src="{% static 'Images/editIcon.png'%}"></a>
+
+                        <a href=" {% url 'deleteDamage' assetCategory=assetCategory assetID=currentAsset.assetID damageID=damage.damageID %}"
+                            onclick="return confirm('Are you sure you want to delete this item?')"
+                            ><img style="max-width:33px; max-height:33px;" src="{% static 'images/bin.png' %}"></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+{% endblock %}

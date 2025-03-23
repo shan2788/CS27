@@ -1,0 +1,21 @@
+<div>
+    <h1>My Checkouts</h1>
+      <table class="table table-hover" id="checkoutsTable">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col">Checkout Time</th>
+            <th scope="col">Location</th>
+            <th scope="col">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr rv-each-item="data">
+            <td>{ item.label }</td>
+            <td>{ item.value.startTime }</td>
+            <td> { item.value.location }</td>
+            <td>{ item.value.notes }</td>
+          </tr>
+        </tbody>
+      </table>
+</div>

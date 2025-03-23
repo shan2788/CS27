@@ -1,0 +1,23 @@
+.quickLink:hover{
+    background-color: #d0e9d3;
+    text-decoration: none;
+    color: black;
+}
+
+.quickLink-icon {
+    width: 30px;
+}
+
+.custom-links {
+    margin-top: 15px;
+}
+
+.close {
+    width: 10px;
+}
+
+#delete {
+    border: none;
+    background: inherit;
+}
+

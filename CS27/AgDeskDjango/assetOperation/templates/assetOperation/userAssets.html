@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+{% load crispy_forms_tags %}
+
+<link rel="stylesheet" href="{% static 'tableStyling.css' %}">
+
+
+<!-- Check In Modal -->
+<script>
+    function set_modal(id, notes) {
+        document.getElementById('id_logID').setAttribute('value', id)
+        document.getElementById('id_notes').value = notes
+    }
+</script>
+<div class="modal fade" id="checkin" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">Check In</h4>
+            </div>
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="container">
+                    <form method="post" enctype="multipart/form-data" id="form-container">
+                        {% csrf_token %}
+                        <input type="hidden" name="logID" id="id_logID" value="0">
+                        <div class="mb-3">
+                            {{ checkinForm.notes.label }}
+                            {{ checkinForm.notes }}
+                        </div>
+                        <!-- Footer -->
+                        <div style="width: 100%;">
+                            <button type="button" class="btn btn-secondary" style="float: left;" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn custom-button" style="float: right;" name="checkin">Confirm</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Header -->
+<h1>My Checkouts</h1>
+<br>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert {{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Asset Tab Menu Config -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="currentCheckouts-tab" data-bs-toggle="tab" data-bs-target="#currentCheckouts" type="button" role="tab" aria-controls="currentCheckouts" aria-selected="true">Current Checkouts</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="previousCheckouts-tab" data-bs-toggle="tab" data-bs-target="#previousCheckouts" type="button" role="tab" aria-controls="previousCheckouts" aria-selected="true">Previous Checkouts</button>
+    </li>
+</ul>
+<br>
+
+<div class="tab-content" id="myTabContent">
+    <!-- Tab Content for Small Equipment table-->
+    <div class="tab-pane fade show active" id="currentCheckouts" role="tabpanel" aria-labelledby="currentCheckouts-tab">
+        <!-- Asset Categories -->
+        {% for logs, label in assetLogs %}
+            <h2>{{ label }}</h2>
+            <!-- Log Table -->
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Taken</th>
+                        <th>Location</th>
+                        <th>Check In</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr onclick="{go_to_asset_url('{{ log.assetPrefix }}','{{ log.assetID }}', 'details')}" class="userRowHeight"> 
+                            <td><a class="asset_detail">{{ log.assetName }}</a></td>
+                            <td><a class="asset_detail">{{ log.startDateTime }}</a></td>
+                            <td><a class="asset_detail">{{ log.location }}</a></td>
+                            {% autoescape on %}
+                            <td>
+                                <button data-bs-toggle="modal" class="btn custom-button" data-bs-target="#checkin"
+                                    onclick="event.stopPropagation(); set_modal('{{ log.logID }}', '{{ log.notes|escapejs }}')"
+                                >Check In</button>
+                            </td>
+                            {% endautoescape %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        <!-- If nothing in any category -->
+        {% empty %}
+            <p>Nothing checked out</p>
+        {% endfor %}
+    </div>
+
+    <div class="tab-pane fade" id="previousCheckouts" role="tabpanel" aria-labelledby="previousCheckouts-tab">
+        <!-- Asset Categories -->
+        {% for logs, label in previousLogs %}
+            <h2>{{ label }}</h2>
+            <!-- Log Table -->
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Check Out Date</th>
+                        <th>Check In Date</th>
+                        <th>Location</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for log in logs %}
+                    <tr> 
+                        <td><a class="asset_detail" href="{% url 'assetDetails' assetCategory=log.assetPrefix assetID=log.assetID %}">{{ log.assetName }}</a></td>
+                        <td><a class="asset_detail" href="{% url 'assetDetails' assetCategory=log.assetPrefix assetID=log.assetID %}">{{ log.startDateTime }}</a></td>
+                        <td><a class="asset_detail" href="{% url 'assetDetails' assetCategory=log.assetPrefix assetID=log.assetID %}">{{ log.endDateTime }}</a></td>
+                        <td><a class="asset_detail" href="{% url 'assetDetails' assetCategory=log.assetPrefix assetID=log.assetID %}">{{ log.location }}</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        <!-- If nothing in any category -->
+        {% empty %}
+            <p>Nothing checked out</p>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

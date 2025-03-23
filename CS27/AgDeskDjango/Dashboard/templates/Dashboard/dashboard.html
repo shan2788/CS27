@@ -1,0 +1,23 @@
+{% extends 'dashing/base.html' %}
+
+{% load static %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="{% static 'dashing.css' %}">
+<link rel="stylesheet" href="{% static '/dashing/widgets/myCheckouts/myCheckouts.css' %}">
+<link rel="stylesheet" href="{% static '/dashing/widgets/myTasks/myTasks.css' %}">
+<link rel="stylesheet" href="{% static '/dashing/widgets/weatherWidgetSmall/weatherWidgetSmall.css' %}">
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript" src="{% static '/dashing/widgets/myCheckouts/myCheckouts.js' %}"></script>
+<script type="text/javascript" src="{% static '/dashing/widgets/myTasks/myTasks.js' %}"></script>
+<script type="text/javascript" src="{% static '/dashing/widgets/weatherWidgetSmall/weatherWidgetSmall.js' %}"></script>
+{% endblock %}
+
+{% block config_file %} 
+<script src="{% static 'jquery.gridster.js' %}"></script>
+<script type="text/javascript" src="{% static 'dashing-config.js' %}"></script>
+
+{% endblock %}
+

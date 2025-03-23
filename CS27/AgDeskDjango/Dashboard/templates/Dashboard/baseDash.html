@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+<script type="module" src="/static/dashing-utils.js"></script>
+<script type="module" src="/static/dashing-config.js"></script>
+
+{% block webpageContent %}
+<div class="row">
+    <!-- Edit button on the left -->
+    <div class="col text-left">
+        <button id="enable-drag" class="btn custom-button">
+            Edit
+        </button>
+    </div>
+
+    <!-- Add widget button (plus symbol) on the right -->
+    <div class="col text-right">
+        <a role="button" id="add-widget" class="unbuttonize" data-bs-toggle="modal" data-bs-target="#addWidget">
+            <img src="{% static 'images/plus.png' %}" style="width:30px; height: 30px;">
+        </a>
+    </div>
+</div>
+
+<div class="modal fade" id="addWidget" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="visibility: visible;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add Widget</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" id="add-widget-form">
+                    {% csrf_token %}
+
+                    {{ addWidgetForm }}
+
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button class="btn custom-button" type="submit" id="save-new-widget" name="add-widget">Save
+                        changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'dashboard/dashboard.html' %}
+{% block config_file %}
+{% endblock %}
+{% endblock %}

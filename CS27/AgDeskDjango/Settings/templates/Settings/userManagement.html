@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+
+<!-- Import necessary stylesheets -->
+<link rel="stylesheet" href="{% static 'userDetails.css' %}">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<div style="width: 100%;">
+    <button class="btn custom-button" style="float: right;" data-bs-toggle="modal" data-bs-target="#addUserForm">Generate Linking Code</button>
+</div>
+
+<!-- Modal which conditionally appears when the user selects terms and conditions -->
+<div class="modal fade" id="addUserForm" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">Generate Linking Code</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">           
+                <div class="container">
+                    <p id="generated-code"></p>
+                    <button type="submit" id="generate-code-button" class="btn custom-button">Generate</button> 
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function(){
+        $("#generate-code-button").click(function(){
+            $.ajax({
+                url    : "{% url 'generate_code' %}",  // Make sure this URL pattern matches your view's URL
+                method : "GET"                      ,
+                success: function(data) {
+                    $("#generated-code").text(`Linking Code: ${data.linking_code}`);
+                }                                   ,
+                error  : function() {
+                    $("#generated-code").text("Error generating code. Please try again.");
+                }
+            });
+        });
+    });
+</script>
+
+<br>
+
+<!-- Display a list of Users -->
+<table class="table table-hover">
+    <thead>
+        <tr>
+        <th>User ID</th>
+        <th>Username</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Title</th>
+        <th style="text-align: center;">Account Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in userList %}
+            <tr onclick="{go_to_user_management_url('{{ user.user.id }}')}" class="userRowHeight">
+                <td><a class="team_detail">{{user.user.id}}</a></td>
+                <td><a class="team_detail">{{user.user.username}}</a></td>
+                <td><a class="team_detail">{{user.user.first_name}} {{user.user.last_name}}</a></td>
+                <td><a class="team_detail">{{user.user.email}}</a></td>
+                <td><a class="team_detail">{{user.jobTitle}}</a></td>
+
+                <td style="text-align: center;">
+                    <a class="team_detail">
+                        {% if user.is_active %}
+                            <p class="ActiveUser">Active</p>
+                        {% else %}
+                            <!-- Added quotes, needs testing if reimplemented -->
+                            {% comment %} <img class="teamImg" src="{% static 'Images/Red_Cross.png' %}"></td> {% endcomment %}
+                            <p class="InactiveUser">Inactive</p>
+                        {% endif %}
+                        {% comment %} {{user.is_active}} {% endcomment %}     
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

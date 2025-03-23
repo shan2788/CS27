@@ -1,0 +1,26 @@
+.delete-contact-button a {
+    color: white;
+    text-decoration: none;
+}
+
+.edit-contact-button a {
+    color: white;
+    text-decoration: none;
+}
+
+.editContactInfoButton {
+    background: none;           /* Remove background */
+    border: none;               /* Remove border */
+    padding: 0;                 /* Remove padding */
+    margin: 0;                  /* Remove margin */
+    cursor: pointer;            /* Ensure pointer cursor for clickable */
+}
+
+.image-thumbnail {
+    padding: 0.25rem;
+    background-color: #f1f3f7;
+    border: #eff0f2;
+    border-radius: 50%;
+    width: 4rem;
+    height: 4rem;
+}

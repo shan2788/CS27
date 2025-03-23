@@ -1,0 +1,67 @@
+.overview-container {
+    width: 80%;
+    margin-left: 0px;
+}
+
+.heading {
+    padding-left: 0px;
+}
+
+.status-label {
+    padding-right:10px;
+}
+.col-xl-4 p {
+    margin-bottom: 0;
+}
+
+.card-body {
+    padding: 10px;
+}
+
+.nav-pills .nav-link.active, .nav-pills .show>.nav-link{
+    background-color: #598392;
+    color: white;
+}
+
+.nav-pills .nav-link, .nav-pills .show>.nav-link{
+    color: #666666;
+}
+
+/* Divider Line Styling */
+.overview-divider {
+    border-top: 1px solid #8c8b8b;
+    margin-bottom: 30px;
+}
+
+/* Status Card Styling */
+
+.overview-card {
+    border: none;
+    min-width:fit-content;
+}
+.status-title {
+    margin-bottom: 15px;
+    font-size: 1.16rem;
+}
+
+.status-count {
+    font-size: 3rem;
+    font-weight: bold;
+}
+
+/* Status Count Styling */
+.zero-count {
+    color: #A0A0A0;
+}
+
+.low-count-style {
+    color: rgba(51, 153, 51, 0.8);
+}
+
+.medium-count-style {
+    color: rgba(204, 102, 0, 0.8);
+}
+
+.high-count-style {
+    color:rgba(204, 51, 51, 0.8);
+}

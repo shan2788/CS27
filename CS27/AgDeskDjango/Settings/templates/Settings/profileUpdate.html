@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+{% load crispy_forms_tags %}
+
+<!-- Asset Tab Menu Config -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-link active">
+        <a href="{%  url 'profileUpdate' %}">My Profile</a>
+    </li>
+    <li class="nav-link"> 
+        <a href = "{% url 'manage_farms' %}">Manage Farms</a>
+    </li>
+</ul>
+
+<br>
+
+<p><strong> Current Farm: </strong> {{ farm }} </p>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert {{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<form method = "POST">
+    {% csrf_token %}
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            {{form.first_name|as_crispy_field}}
+        </div>
+        <div class="col-md-4">
+            {{form.last_name|as_crispy_field}}
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            {{form.phoneNumber|as_crispy_field}}
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-sm-2">
+            <input id="submit" type="submit" name="update" class="mb-4 btn custom-button w-100" value="Update Details">
+        </div>
+    </div>
+</form>
+
+{% endblock %}

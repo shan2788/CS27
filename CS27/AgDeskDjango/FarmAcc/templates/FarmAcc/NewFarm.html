@@ -1,0 +1,58 @@
+{% load static %}
+{% load crispy_forms_tags %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Adding Bootstrap libraries -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{% static 'styling.css' %}" type="text/css">
+    <title>Join Farm</title>
+</head>
+
+<body style="background-color: #f2f2f0">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- The container containing the form -->
+    <div class="container">
+        <div class="row vh-100 align-items-center justify-content-center">
+            <div class="col-sm-9 col-md-7 col-lg-5 bg-white rounded p-4">
+                <div class="row justify-content-center mb-4">
+                    <h2> Create New Farm Environment </h2>
+                    <p> Welcome to AgDesk! To get started, please enter the following details to set up your farm environment. </p>
+
+                    {% for message in messages %}
+                        <div class="mb-4 alert alert-danger">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        {{ form.farm_name|as_crispy_field }}
+                        {{ form.farm_street|as_crispy_field }}
+
+                        <div class = "row">
+                            <div class="col-md-6">
+                                {{ form.farm_state|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.farm_postcode|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        {{ form.farm_bio|as_crispy_field }}
+                        {{ form.farm_image|as_crispy_field }}
+
+                        <button type="submit" class="btn custom-button" style="float: right;" name="join">Create Farm</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>

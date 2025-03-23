@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %}
+{% load crispy_forms_tags %}
+
+<link rel="stylesheet" href="{% static 'farmSettings.css'%}" type="text/css">
+
+<h2> Farm Details </h2>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert {{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<form method = "POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="row mb-3">
+                {{form.farm_name|as_crispy_field}}
+            </div>
+
+            <div class="row mb-3">
+                {{form.farm_street|as_crispy_field}}
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    {{form.farm_state|as_crispy_field}}
+                </div>
+                <div class="col-md-6">
+                    {{form.farm_postcode|as_crispy_field}}
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        {{form.farm_bio|as_crispy_field}}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <input id="submit" type="submit" name="update" class="mb-4 btn custom-button" value="Update Details">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="row mb-3 justify-content-between">
+                <div class="row mb-3"> 
+                    <img class="img img-fluid" id="farmImg"src="{{ farm_image.url }}"/>
+                </div>
+
+                <div class="row mb-3 align-self-end">
+                    {{form.farm_image|as_crispy_field}}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

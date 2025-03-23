@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block webpageContent %} 
+{% load crispy_forms_tags %}
+<link rel="stylesheet" href="{% static "tableStyling.css"%}">
+
+<h2> {{currentAsset.assetName}}</h2>
+{% if assetCategory == 'LV' or assetCategory == "HV" %}
+<p> Registration: {{currentAsset.Registration}} </p>
+{% endif %}
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert {{ message.tags }}" role="alert">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Asset Tab Menu Config -->
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-link">
+        <a href="{% url 'assetDetails' assetCategory=assetCategory assetID=currentAsset.assetID %}">Details</a>
+    </li>
+    <li class=" nav-link active"> 
+        <a href = "{% url 'assetMaintenance' assetCategory=assetCategory assetID=currentAsset.assetID %}">Maintenance</a>
+    </li>
+    <li class="nav-link">
+        <a href = "{% url 'assetDamage' assetCategory=assetCategory assetID=currentAsset.assetID %}">Damage</a>
+    </li>
+    <li class="nav-link">
+        <a href = "{% url 'assetExpenses' assetCategory=assetCategory assetID=currentAsset.assetID %}">Expenses</a>
+    </li>
+    <li class="nav-link">
+        <a href = "{% url 'assetLogs' assetCategory=assetCategory assetID=currentAsset.assetID %}">Logs</a>
+    </li>
+</ul>
+
+<!-- Add Maintenance Modal -->
+<div class="modal fade" id="newMaintenance" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl maintenance-modal">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">New Maintenance Information</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="closeModal()"></button>
+            </div>
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="container">
+                    <form method="post" enctype="multipart/form-data" id="form-container">
+                        {% csrf_token %}
+                        {% crispy creationForm %}
+                        <!-- Footer -->
+                    </form>
+                </div>
+            </div>
+
+            <!-- Lazy way of removing kmsBeforeNextService -->
+            {% if assetCategory == "SE" %}
+                <script>
+                    document.getElementById("div_id_kmsBeforeNextService").parentElement.hidden = true;
+                </script>
+            {% endif %}
+        </div>
+    </div>
+</div> 
+
+{% if creationForm.errors %}
+<script>
+    // Remove fade class and show modal
+    var modalElement = document.getElementById('newMaintenance');
+    modalElement.classList.remove('fade');
+    var modal = new bootstrap.Modal(modalElement);
+    modal.show();
+
+    function closeModal() {
+        modalElement.classList.add('fade');
+        modal.hide();
+    }
+</script>
+{% endif %}
+
+<!-- Asset Tab Content Config-->
+<div class="tab-content" id="myTabContent">
+    <!-- Config for Maintenance Details form rendering -->
+    <div class="tab-pane fade show active" id="assetDetails" role="tabpanel" aria-labelledby="asset-details">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th scope="col">Completed Date</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Cost</th>
+                    <th scope="col">Completed By</th>
+                    <th scope="col">Notes</th>
+                    <th scope="col"><button data-bs-toggle="modal" data-bs-target="#newMaintenance" class="btn custom-button">Add Maintenance</button></th>
+                </tr>
+            </thead>
+        
+            <tbody>
+            </tr> <!-- What is this for? -->
+            {% for maintenance in maintenanceData %}
+                <tr onclick="{go_to_asset_url('{{ assetCategory }}','{{ asset.assetID }}', 'maintenance', maintenanceID='{{ maintenance.maintenanceID }}')}" class="userRowHeight">
+                    <td><a class="asset_detail">{{maintenance.completionDate}}</a></td>
+                    <td><a class="asset_detail">{{maintenance.get_maintenanceType_display}}</a></td>
+                    <td><a class="asset_detail">${{maintenance.Cost}}</a></td>
+                    <td><a class="asset_detail">{{maintenance.maintenanceConductedBy}}</a></td>
+                    <td><a class="asset_detail">{{maintenance.Notes}}</a></td>
+                    <td style="display: flex; justify-content: right;">
+                        <a class="asset_detail unbuttonize" href="{% url 'assetMaintenanceDetails' assetCategory=assetCategory assetID=currentAsset.assetID maintenanceID=maintenance.maintenanceID%}"><img style="  max-width:33px; max-height:33px;" src="{% static 'Images/editIcon.png'%}"></a>
+
+                        <a href="{% url 'deleteMaintenance' assetCategory=assetCategory assetID=currentAsset.assetID maintenanceID=maintenance.maintenanceID %}" onclick="return confirm('Are you sure you want to delete this item?')">
+                            <img style="max-width:33px; max-height:33px;" src="{% static 'Images/bin.png' %}">
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

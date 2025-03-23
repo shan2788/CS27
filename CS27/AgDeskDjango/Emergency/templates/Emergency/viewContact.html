@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% block webpageContent %}
+{% load static %}
+{% load crispy_forms_tags %}
+<link rel="stylesheet" href="{% static 'emergencyContacts.css'%}" type="text/css">
+
+
+<!-- Add Contact Information Modal -->
+<div class="modal fade" id="newContactInfo" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">New Contact Information</h4>
+            </div>
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="container">
+                    <form method="post" enctype="multipart/form-data" id="form-container">
+                        {% csrf_token %}
+                        <!-- Body (Again?) -->
+                        <div class="modal-body">
+                            <!-- Contact Info -->
+                            {{ addContactInfoForm.management_form }}
+                            <div id="contact-info-forms">
+                                {% for form in addContactInfoForm %}
+                                    <div class="contact-info-form">
+                                        {{ form.contact_method|as_crispy_field }}
+                                        {{ form.contact_info|as_crispy_field }}
+                                        <button type="button" class="delete-form btn btn-danger" style="float: right;">Delete</button>
+                                        <div style="clear: both;"></div>
+                                        <hr style="border: 0; height: 1px; background: #333; margin: 20px 0;">
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <!-- Footer -->
+                        <button id="add-form" type="button" class="btn custom-button" style="margin-bottom: 10px;">Add Contact Info</button>
+                        <div style="width: 100%;">
+                            <button type="button" class="btn btn-secondary" style="float: left;" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn custom-button" style="float: right;">Save Contact Info</button>
+                        </div>
+                    </form>
+                    <!-- Script for controlling the form -->
+                    <script src="/static/contactInfoForm.js"></script>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 
+
+
+<!-- Modal to edit existing Contact Information -->
+<div class="modal fade" id="editContactInfo" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalTitle">Edit Contact Information</h4>
+            </div>
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="container">
+                    <form method="post" action="{% url 'updateContact' Contact.farmContactID %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <!-- Contact Info -->
+                        <div class="mb-3">
+                            <input type="hidden" name="contact_info_id" id="id_contact_info_id">
+                            {{ editContactInfo.contact_method|as_crispy_field }}
+                            {{ editContactInfo.contact_info|as_crispy_field }}
+                        </div>
+                        <!-- Footer (Inside Body?) -->
+                        <div style="width: 100%;">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" aria-label="Close">Close</button>
+                            <button type="submit" class="btn custom-button" style="float: right;">Save Contact Info</button>
+                        </div>
+                    </form>
+                    <!-- Script to populate modal with correct information -->
+                    <script>
+                        function populateModal(element) {
+                            // Get data attributes from the clicked element
+                            var contactMethod = element.getAttribute("data-contact-method");
+                            var contactInfo = element.getAttribute("data-contact-info");
+                            var contactInfoId = element.getAttribute("data-contact-info-id");
+
+                            // Populate the form fields in the modal
+                            document.getElementById("id_contact_method").value = contactMethod;
+                            document.getElementById("id_contact_info").value = contactInfo;
+                            document.getElementById("id_contact_info_id").value = contactInfoId;
+
+                            // Show the modal
+                            let editContactInfoElement = document.getElementById("editContactInfo")
+                            var modal = new bootstrap.Modal(editContactInfoElement);
+                            modal.show();
+
+                            // Add event listener to close the modal when the close button is clicked
+                            editContactInfoElement.querySelector('.btn-secondary').addEventListener('click', function () {
+                                modal.hide();
+                            });
+                        }
+                    </script>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Page Content -->
+<div class="container", style="max-width: 100%;">
+    <!-- Header (Make div?) -->
+    <h2>Contact Information</h2>
+    <br> <!-- br not needed on other page with proper divs -->
+
+    <!-- Alert Messages -->
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert {{ message.tags }}" role="alert">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Name & Description -->
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row">
+            <div class = "form-group col-md-7 mb-0">
+                {{UpdateContact|crispy}}
+            </div>
+            <div class = "form-group col-md-5 mb-0 text-center">
+                <img style = "max-width: 400px; max-height: 350px;" src = "{{ Contact.image.url }}"/>
+            </div>
+        </div>
+        <div class="row float-end">
+        <div style="float:right;">
+            <button type="submit" class="btn custom-button">Save</button>
+            <button type="button" class="delete-contact-button btn btn-danger"><a href="{% url 'deleteContact' Contact.farmContactID %}" 
+                onclick="return confirm('Are you sure you want to delete this contact? All associated contact information will be deleted.')">Delete</a></button>
+        </div>
+    </div>
+    </form>
+    <br> <!-- Also shouldn't need br here -->
+    <!-- Contact Info -->
+    <table class="table table-hover">
+        <!-- Table Head -->
+        <thead>
+            <tr>
+                <th scope="col">Contact Method</th>
+                <th scope="col">Contact Information</th>
+                <th scope="col"><button data-bs-toggle="modal" data-bs-target="#newContactInfo" class="btn custom-button">Add Contact Info</button></th>
+            </tr>
+        </thead>
+        <!-- Table Data -->
+        <tbody>
+            {% for info in ContactInfo %}
+            <tr class="userRowHeight"
+                data-contact-method="{{ info.field }}" 
+                data-contact-info="{{ info.info }}" 
+                data-contact-info-id="{{ info.contactInfoID }}" 
+                onclick="populateModal(this)">
+
+                <!-- Contact Info -->
+                <td>{{ info.field }}</td>
+                <td>{{ info.info }}</td>
+                <!-- Buttons -->
+                <td style="display: flex; justify-content: right;">
+                    <a href="{% url 'deleteContactInfo' info.contactInfoID %}" onclick="return confirm('Are you sure you want to delete this item?')">
+                        <img style="max-width:33px; max-height:33px;" src="{% static 'Images/bin.png' %}">
+                    </a>
+                    
+                    <button data-bs-toggle="modal" data-bs-target="#editContactInfo" id="editContactInfoButton" class="editContactInfoButton"
+                        data-contact-method="{{ info.field }}" 
+                        data-contact-info="{{ info.info }}" 
+                        data-contact-info-id="{{ info.contactInfoID }}" 
+                        onclick="populateModal(this)">
+                        <img style="max-width:33px; max-height:33px;" src="{% static 'Images/editIcon.png' %}">
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+
+{% endblock %}
