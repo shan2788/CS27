@@ -124,61 +124,6 @@
       console.error(err);
     });
   }
-
-  document.getElementById("save-ndvi-btn").addEventListener("click", function () {
-    if (!drawnPolygon) {
-      alert("Please draw a region on the map first.");
-      return;
-    }
-
-    // 1. 获取 polygon 的 GeoJSON
-    const geojson = drawnPolygon.toGeoJSON().geometry;
-
-    // 2. 获取农场 ID（你可以从 JS 变量、data 属性或隐藏 input 中获取）
-    const farmID = window.currentFarmID || 1;  // 默认 1，可替换为你的逻辑
-
-    // 3. 发起 POST 请求保存
-    fetch("/api/save-ndvi/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken")
-      },
-      body: JSON.stringify({
-        geometry: geojson,
-        farm_id: farmID
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.status === "ok") {
-        alert("✅ NDVI region saved! ID: " + data.id);
-      } else {
-        alert("❌ Save failed: " + JSON.stringify(data));
-      }
-    })
-    .catch(err => {
-      alert("Error saving NDVI region.");
-      console.error(err);
-    });
-  });
-
-  // 帮助函数：获取 CSRF Token
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== "") {
-      const cookies = document.cookie.split(";");
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        // 如果这个 cookie 是我们要找的
-        if (cookie.substring(0, name.length + 1) === name + "=") {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
-      }
-    }
-    return cookieValue;
-  }
 </script>
 
 {% endblock %}
