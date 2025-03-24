@@ -75,6 +75,7 @@ def ndvi_view(request):
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
     try:
+
         data = json.loads(request.body)
         geometry = data['geometry']
         start_date = data.get('start_date', "2025-02-23")
@@ -126,10 +127,12 @@ def save_ndvi_result(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
+
     try:
+        current_user = request.user
+        farmID = current_user.currentFarm_id
         data = json.loads(request.body)
         geometry_data = data['geometry']
-        farm_id = data['farm_id']
         start_date = data.get('start_date', "2025-02-23")
         end_date = data.get('end_date', "2025-03-23")
 
@@ -166,8 +169,7 @@ def save_ndvi_result(request):
         image_binary = get_ndvi_image_binary(geometry_data, start_date, end_date, evalscript_ndvi)
 
         geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-        farm = FarmInfo.objects.get(id=farm_id)
-
+        farm = FarmInfo.objects.get(id=farmID)
         region = NDVIRegion(farm=farm, geometry=geo_obj)
         filename = f"ndvi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
         region.image.save(filename, ContentFile(image_binary))

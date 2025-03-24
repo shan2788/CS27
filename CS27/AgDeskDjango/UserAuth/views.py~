@@ -16,7 +16,7 @@ from FarmAcc.views import FarmManager
 from UserAuth.models import UserProfile
 
 
-
+global _current_user
 def signup(request: HttpRequest):
     """
     This view renders the sign up page which allows users to signup and create a new farming tenant.
