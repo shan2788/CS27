@@ -23,6 +23,7 @@ class Migration(migrations.Migration):
                 ('farm_postcode', models.CharField(max_length=6)),
                 ('farm_bio', models.TextField()),
                 ('farm_image', models.ImageField(blank=True, default='images/farm_images/default_image.png', null=True, upload_to='images/farm_images')),
+                ('farm_coordinates', gis_models.PolygonField(srid=4326, null=True, blank=True)),
             ],
         ),
         migrations.CreateModel(
