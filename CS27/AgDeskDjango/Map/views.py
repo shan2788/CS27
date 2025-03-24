@@ -31,12 +31,30 @@ def ndvi_view(request):
                 function setup() {
                     return {
                         input: ["B04", "B08"],
-                        output: { bands: 1, sampleType: "UINT8" }
+                        output: { bands: 4, sampleType: "UINT8" } // 4 bands for RGBA
                     };
                 }
                 function evaluatePixel(sample) {
                     let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
-                    return [ndvi * 255];
+                    let r = 0, g = 0, b = 0, a = 255;
+
+                    if (ndvi < -0.2) {
+                        r = 0; g = 0; b = 0; // Black for values less than -0.2
+                    } else if (ndvi < 0) {
+                        r = 165; g = 42; b = 42; // Brown for values between -0.2 and 0
+                    } else if (ndvi < 0.2) {
+                        r = 255; g = 255; b = 0; // Yellow for values between 0 and 0.2
+                    } else if (ndvi < 0.4) {
+                        r = 0; g = 255; b = 0; // Green for values between 0.2 and 0.4
+                    } else {
+                        r = 0; g = 128; b = 0; // Dark green for values greater than 0.4
+                    }
+
+                    if (sample.B08 === 0 && sample.B04 === 0) {
+                        a = 0; // Transparent for areas outside the geometry
+                    }
+
+                    return [r, g, b, a];
                 }"""
 
             url = "https://services.sentinel-hub.com/api/v1/process"
@@ -75,7 +93,7 @@ def ndvi_view(request):
 
             response = requests.post(url, headers=headers, json=payload)
 
-            logger.debug(f"Received response with status code {response.status_code} and content: {response.content}")
+            # logger.debug(f"Received response with status code {response.status_code} and content: {response.content}")
 
             if response.status_code == 200:
                 return HttpResponse(response.content, content_type="image/png")
