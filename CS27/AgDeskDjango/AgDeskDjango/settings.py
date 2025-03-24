@@ -135,6 +135,7 @@ DATABASES = {
 }
 
 GDAL_LIBRARY_PATH = os.environ.get('GDAL_LIBRARY_PATH')
+GEOS_LIBRARY_PATH = os.environ.get('GEOS_LIBRARY_PATH', None)
 
 DATE_INPUT_FORMATS = [
     "%Y-%m-%d" ,  # "2006-10-25"
