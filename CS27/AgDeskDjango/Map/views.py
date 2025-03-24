@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 import json, requests
 from .sentinel_auth import get_sentinel_token
 
@@ -11,30 +11,34 @@ def map_view(request):
     return render(request, 'Map/map.html')
 
 
-
 @csrf_exempt
 def ndvi_view(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             geometry = data['geometry']
+            start_date = data.get('start_date', "2025-02-23")
+            end_date = data.get('end_date', "2025-03-23")
 
             sentinel_token = get_sentinel_token()
 
-            evalscript = """
-            //VERSION=3
-            function setup() {
-              return {
-                input: ["B04", "B08"],
-                output: [{ id: "ndvi", bands: 1 }]
-              };
-            }
+            evalscript_ndvi = """//VERSION=3
+                function setup() {
+                    return {
+                        input: ["B04", "B08"],
+                        output: { bands: 1, sampleType: "FLOAT32" }
+                    };
+                }
+                function evaluatePixel(sample) {
+                    let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
+                    return [ndvi];
+                }"""
 
-            function evaluatePixel(sample) {
-              let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
-              return { ndvi: [ndvi] };
+            url = "https://services.sentinel-hub.com/api/v1/process"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {sentinel_token}"
             }
-            """
 
             payload = {
                 "input": {
@@ -42,36 +46,36 @@ def ndvi_view(request):
                         "geometry": geometry
                     },
                     "data": [{
-                        "type": "sentinel-2-l2a"
+                        "type": "sentinel-2-l2a",
+                        "dataFilter": {
+                            "timeRange": {
+                                "from": f"{start_date}T00:00:00Z",
+                                "to": f"{end_date}T23:59:59Z"
+                            }
+                        }
                     }]
                 },
-                "aggregation": {
-                    "timeRange": {
-                        "from": "2023-03-01T00:00:00Z",
-                        "to": "2023-03-31T23:59:59Z"
-                    },
-                    "aggregationInterval": {"value": 1, "unit": "DAYS"},
-                    "resx": 10,
-                    "resy": 10
+                "output": {
+                    "width": 512,
+                    "height": 512,
+                    "responses": [{
+                        "identifier": "default",
+                        "format": {"type": "image/png"}
+                    }]
                 },
-                "calculations": {
-                    "default": {
-                        "evalscript": evalscript
-                    }
-                }
+                "evalscript": evalscript_ndvi
             }
 
-            response = requests.post(
-                "https://services.sentinel-hub.com/api/v1/statistics",
-                headers={
-                    "Authorization": f"Bearer {sentinel_token}",
-                    "Content-Type": "application/json"
-                },
-                json=payload
-            )
+            response = requests.post(url, headers=headers, json=payload)
 
-            stats = response.json()['data'][0]['outputs']['ndvi']['bands'][0]['stats']
-            return JsonResponse({'ndvi': stats['mean']})
+            if response.status_code == 200:
+                return HttpResponse(response.content, content_type="image/png")
+            else:
+                return JsonResponse({
+                    "error": "Sentinel Hub API error",
+                    "status": response.status_code,
+                    "detail": response.text
+                })
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)

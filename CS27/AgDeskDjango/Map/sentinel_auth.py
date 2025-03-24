@@ -1,21 +1,18 @@
 import requests, os, time
 from dotenv import load_dotenv
 
-load_dotenv()  # 加载 .env 文件
-
-# 全局缓存变量
+load_dotenv()
 _token = None
 _token_expiry = 0
 
-  # 预加载 token
 def get_sentinel_token():
     global _token, _token_expiry
 
     now = time.time()
     if _token and now < _token_expiry:
-        return _token  # 如果还没过期，直接返回
+        return _token  # if not expired, return directly
 
-    # 否则重新获取 token
+    # get a new token
     url = "https://services.sentinel-hub.com/oauth/token"
     payload = {
         "grant_type": "client_credentials",
@@ -28,9 +25,8 @@ def get_sentinel_token():
     token_data = response.json()
 
     _token = token_data["access_token"]
-    _token_expiry = now + token_data["expires_in"] - 60  # 提前60秒过期防止边界问题
+    _token_expiry = now + token_data["expires_in"] - 60
 
-    print(_token)
     return _token
 
 token= get_sentinel_token()

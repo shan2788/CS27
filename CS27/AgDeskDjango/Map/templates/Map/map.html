@@ -11,6 +11,18 @@
         </div>
     </div>
 
+    <!-- Date Selection -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label>Start Date:</label>
+            <input type="date" id="start-date" class="form-control" value="2025-02-23">
+        </div>
+        <div class="col-md-3">
+            <label>End Date:</label>
+            <input type="date" id="end-date" class="form-control" value="2025-03-23">
+        </div>
+    </div>
+
     <!-- Map Section -->
     <div class="row">
         <div class="col-12">
@@ -21,6 +33,14 @@
         <button id="start-draw" class="btn btn-primary">Start Drawing</button>
         <button id="end-draw" class="btn btn-secondary">Cancel Drawing</button>
         <button class="btn btn-success" onclick="submitPolygon()">Get NDVI</button>
+    </div>
+
+    <!-- NDVI Image Display -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <h5>NDVI Image</h5>
+            <img id="ndvi-image" style="max-width: 100%; border: 1px solid #ccc;" />
+        </div>
     </div>
 </div>
 
@@ -33,7 +53,7 @@
 <script>
   let drawnPolygon = null;
   let drawHandler;
-  const map = L.map('map').setView([34.05, 118.25], 10);
+  const map = L.map('map').setView([-33.8688, 151.2093], 10);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
@@ -75,17 +95,31 @@
     }
 
     const geojson = drawnPolygon.toGeoJSON();
+    const startDate = document.getElementById("start-date").value;
+    const endDate = document.getElementById("end-date").value;
+
     fetch("/map/api/ndvi/", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ geometry: geojson.geometry })
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}"
+      },
+      body: JSON.stringify({
+        geometry: geojson.geometry,
+        start_date: startDate,
+        end_date: endDate
+      })
     })
-    .then(res => res.json())
-    .then(data => {
-      alert("Average NDVI: " + data.ndvi.toFixed(3));
+    .then(res => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.blob();
+    })
+    .then(blob => {
+      const imageUrl = URL.createObjectURL(blob);
+      document.getElementById("ndvi-image").src = imageUrl;
     })
     .catch(err => {
-      alert("Error fetching NDVI");
+      alert("Error fetching NDVI image");
       console.error(err);
     });
   }
