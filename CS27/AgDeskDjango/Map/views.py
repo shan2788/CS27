@@ -2,15 +2,17 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
-import json, requests
+from django.contrib.gis.geos import GEOSGeometry
+from django.core.files.base import ContentFile
+import json, requests, datetime, logging
 
 from .models import NDVIRegion
 from .sentinel_auth import get_sentinel_token
-import logging
+from  FarmAcc.models import FarmInfo
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 
 @login_required(login_url="login")
@@ -18,160 +20,161 @@ def map_view(request):
     return render(request, 'Map/map.html')
 
 
+def get_ndvi_image_binary(geometry, start_date, end_date, evalscript):
+    """
+    请求 Sentinel Hub 获取 NDVI 图像
+    """
+    token = get_sentinel_token()
+
+    payload = {
+        "input": {
+            "bounds": {
+                "geometry": geometry
+            },
+            "data": [{
+                "type": "sentinel-2-l2a",
+                "dataFilter": {
+                    "timeRange": {
+                        "from": f"{start_date}T00:00:00Z",
+                        "to": f"{end_date}T23:59:59Z"
+                    }
+                }
+            }]
+        },
+        "output": {
+            "width": 512,
+            "height": 512,
+            "responses": [{
+                "identifier": "default",
+                "format": {"type": "image/png"}
+            }]
+        },
+        "evalscript": evalscript
+    }
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    logger.debug("Sending request to Sentinel Hub...")
+    response = requests.post("https://services.sentinel-hub.com/api/v1/process", headers=headers, json=payload)
+
+    if response.status_code == 200:
+        return response.content
+    else:
+        raise Exception(f"Sentinel error {response.status_code}: {response.text}")
+
+
 @csrf_exempt
 def ndvi_view(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            geometry = data['geometry']
-            start_date = data.get('start_date', "2025-02-23")
-            end_date = data.get('end_date', "2025-03-23")
+    """
+    返回 NDVI 图像预览（不保存到数据库）
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
-            sentinel_token = get_sentinel_token()
+    try:
+        data = json.loads(request.body)
+        geometry = data['geometry']
+        start_date = data.get('start_date', "2025-02-23")
+        end_date = data.get('end_date', "2025-03-23")
 
-            evalscript_ndvi = """//VERSION=3
-                function setup() {
-                    return {
-                        input: ["B04", "B08"],
-                        output: { bands: 4, sampleType: "UINT8" } // 4 bands for RGBA
-                    };
-                }
-                function evaluatePixel(sample) {
-                    let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
-                    let r = 0, g = 0, b = 0, a = 255;
+        evalscript_ndvi = """//VERSION=3
+        function setup() {
+            return {
+                input: ["B04", "B08"],
+                output: { bands: 4, sampleType: "UINT8" }
+            };
+        }
+        function evaluatePixel(sample) {
+            let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
+            let r = 0, g = 0, b = 0, a = 255;
 
-                    if (ndvi < -0.2) {
-                        r = 0; g = 0; b = 0; // Black for values less than -0.2
-                    } else if (ndvi < 0) {
-                        r = 165; g = 42; b = 42; // Brown for values between -0.2 and 0
-                    } else if (ndvi < 0.2) {
-                        r = 255; g = 255; b = 0; // Yellow for values between 0 and 0.2
-                    } else if (ndvi < 0.4) {
-                        r = 0; g = 255; b = 0; // Green for values between 0.2 and 0.4
-                    } else {
-                        r = 0; g = 128; b = 0; // Dark green for values greater than 0.4
-                    }
-
-                    if (sample.B08 === 0 && sample.B04 === 0) {
-                        a = 0; // Transparent for areas outside the geometry
-                    }
-
-                    return [r, g, b, a];
-                }"""
-
-            url = "https://services.sentinel-hub.com/api/v1/process"
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {sentinel_token}"
+            if (ndvi < -0.2) {
+                r = 0; g = 0; b = 0;
+            } else if (ndvi < 0) {
+                r = 165; g = 42; b = 42;
+            } else if (ndvi < 0.2) {
+                r = 255; g = 255; b = 0;
+            } else if (ndvi < 0.4) {
+                r = 0; g = 255; b = 0;
+            } else {
+                r = 0; g = 128; b = 0;
             }
 
-            payload = {
-                "input": {
-                    "bounds": {
-                        "geometry": geometry
-                    },
-                    "data": [{
-                        "type": "sentinel-2-l2a",
-                        "dataFilter": {
-                            "timeRange": {
-                                "from": f"{start_date}T00:00:00Z",
-                                "to": f"{end_date}T23:59:59Z"
-                            }
-                        }
-                    }]
-                },
-                "output": {
-                    "width": 512,
-                    "height": 512,
-                    "responses": [{
-                        "identifier": "default",
-                        "format": {"type": "image/png"}
-                    }]
-                },
-                "evalscript": evalscript_ndvi
+            if (sample.B08 === 0 && sample.B04 === 0) {
+                a = 0;
             }
 
-            logger.debug(f"Sending request to {url} with payload: {json.dumps(payload, indent=2)} and headers: {headers}")
+            return [r, g, b, a];
+        }"""
 
-            response = requests.post(url, headers=headers, json=payload)
+        image_data = get_ndvi_image_binary(geometry, start_date, end_date, evalscript_ndvi)
+        return HttpResponse(image_data, content_type="image/png")
 
-            # logger.debug(f"Received response with status code {response.status_code} and content: {response.content}")
-
-            if response.status_code == 200:
-                return HttpResponse(response.content, content_type="image/png")
-            else:
-                return JsonResponse({
-                    "error": "Sentinel Hub API error",
-                    "status": response.status_code,
-                    "detail": response.text
-                })
-
-        except Exception as e:
-            logger.error(f"Exception occurred: {str(e)}")
-            return JsonResponse({'error': str(e)}, status=400)
-
-    return JsonResponse({'error': 'Only POST allowed'}, status=405)
+    except Exception as e:
+        logger.error("NDVI preview error: " + str(e))
+        return JsonResponse({'error': str(e)}, status=400)
 
 
-# def get_ndvi_image_binary(geometry, start_date, end_date):
-#     token = get_sentinel_token()
-#
-#     payload = {
-#         "input": {
-#             "bounds": {
-#                 "geometry": geometry
-#             },
-#             "data": [{
-#                 "type": "sentinel-2-l2a",
-#                 "dataFilter": {
-#                     "timeRange": {
-#                         "from": f"{start_date}T00:00:00Z",
-#                         "to": f"{end_date}T23:59:59Z"
-#                     }
-#                 }
-#             }]
-#         },
-#         "output": {
-#             "width": 512,
-#             "height": 512,
-#             "responses": [{
-#                 "identifier": "default",
-#                 "format": {"type": "image/png"}
-#             }]
-#         },
-#         "evalscript": evalscript_ndvi
-#     }
-#
-#     headers = {
-#         "Authorization": f"Bearer {token}",
-#         "Content-Type": "application/json"
-#     }
-#
-#     response = requests.post("https://services.sentinel-hub.com/api/v1/process",
-#                              headers=headers,
-#                              json=payload)
-#
-#     if response.status_code == 200:
-#         return response.content
-#     else:
-#         raise Exception(f"Sentinel error: {response.status_code}, {response.text}")
+@csrf_exempt
+def save_ndvi_result(request):
+    """
+    保存 NDVI 区域和图像到数据库
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
-# def save_ndvi_result(request):
-#     if request.method == "POST":
-#         body = json.loads(request.body)
-#
-#         geometry_data = body['geometry']
-#         farm_id = body['farm_id']  #
-#
-#         # 从 Sentinel Hub
-#         ndvi_image_binary = get_ndvi_image_binary(geometry_data, ...)
-#         # 处理数据
-#         geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-#         farm = FarmAcc_farminfo.objects.get(id=farm_id)
-#
-#         filename = f"ndvi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
-#
-#         region = NDVIRegion(farm=farm, geometry=geo_obj)
-#         region.image.save(filename, ContentFile(ndvi_image_binary), save=True)
-#
-#         return JsonResponse({'status': 'ok', 'id': region.id})
+    try:
+        data = json.loads(request.body)
+        geometry_data = data['geometry']
+        farm_id = data['farm_id']
+        start_date = data.get('start_date', "2025-02-23")
+        end_date = data.get('end_date', "2025-03-23")
+
+        evalscript_ndvi = """//VERSION=3
+        function setup() {
+            return {
+                input: ["B04", "B08"],
+                output: { bands: 4, sampleType: "UINT8" }
+            };
+        }
+        function evaluatePixel(sample) {
+            let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
+            let r = 0, g = 0, b = 0, a = 255;
+
+            if (ndvi < -0.2) {
+                r = 0; g = 0; b = 0;
+            } else if (ndvi < 0) {
+                r = 165; g = 42; b = 42;
+            } else if (ndvi < 0.2) {
+                r = 255; g = 255; b = 0;
+            } else if (ndvi < 0.4) {
+                r = 0; g = 255; b = 0;
+            } else {
+                r = 0; g = 128; b = 0;
+            }
+
+            if (sample.B08 === 0 && sample.B04 === 0) {
+                a = 0;
+            }
+
+            return [r, g, b, a];
+        }"""
+
+        image_binary = get_ndvi_image_binary(geometry_data, start_date, end_date, evalscript_ndvi)
+
+        geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
+        farm = FarmInfo.objects.get(id=farm_id)
+
+        region = NDVIRegion(farm=farm, geometry=geo_obj)
+        filename = f"ndvi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
+        region.image.save(filename, ContentFile(image_binary))
+        region.save()
+
+        return JsonResponse({'status': 'ok', 'id': region.id})
+
+    except Exception as e:
+        logger.error("Error saving NDVI region: " + str(e))
+        return JsonResponse({'error': str(e)}, status=400)
