@@ -4,6 +4,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 import json, requests
 from .sentinel_auth import get_sentinel_token
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 @login_required(login_url="login")
@@ -26,12 +31,12 @@ def ndvi_view(request):
                 function setup() {
                     return {
                         input: ["B04", "B08"],
-                        output: { bands: 1, sampleType: "FLOAT32" }
+                        output: { bands: 1, sampleType: "UINT8" }
                     };
                 }
                 function evaluatePixel(sample) {
                     let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
-                    return [ndvi];
+                    return [ndvi * 255];
                 }"""
 
             url = "https://services.sentinel-hub.com/api/v1/process"
@@ -66,7 +71,11 @@ def ndvi_view(request):
                 "evalscript": evalscript_ndvi
             }
 
+            logger.debug(f"Sending request to {url} with payload: {json.dumps(payload, indent=2)} and headers: {headers}")
+
             response = requests.post(url, headers=headers, json=payload)
+
+            logger.debug(f"Received response with status code {response.status_code} and content: {response.content}")
 
             if response.status_code == 200:
                 return HttpResponse(response.content, content_type="image/png")
@@ -78,6 +87,7 @@ def ndvi_view(request):
                 })
 
         except Exception as e:
+            logger.error(f"Exception occurred: {str(e)}")
             return JsonResponse({'error': str(e)}, status=400)
 
     return JsonResponse({'error': 'Only POST allowed'}, status=405)
