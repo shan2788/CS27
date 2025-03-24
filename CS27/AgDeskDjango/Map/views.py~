@@ -113,65 +113,65 @@ def ndvi_view(request):
     return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
 
-# def get_ndvi_image_binary(geometry, start_date, end_date):
-#     token = get_sentinel_token()
-#
-#     payload = {
-#         "input": {
-#             "bounds": {
-#                 "geometry": geometry
-#             },
-#             "data": [{
-#                 "type": "sentinel-2-l2a",
-#                 "dataFilter": {
-#                     "timeRange": {
-#                         "from": f"{start_date}T00:00:00Z",
-#                         "to": f"{end_date}T23:59:59Z"
-#                     }
-#                 }
-#             }]
-#         },
-#         "output": {
-#             "width": 512,
-#             "height": 512,
-#             "responses": [{
-#                 "identifier": "default",
-#                 "format": {"type": "image/png"}
-#             }]
-#         },
-#         "evalscript": evalscript_ndvi
-#     }
-#
-#     headers = {
-#         "Authorization": f"Bearer {token}",
-#         "Content-Type": "application/json"
-#     }
-#
-#     response = requests.post("https://services.sentinel-hub.com/api/v1/process",
-#                              headers=headers,
-#                              json=payload)
-#
-#     if response.status_code == 200:
-#         return response.content
-#     else:
-#         raise Exception(f"Sentinel error: {response.status_code}, {response.text}")
+def get_ndvi_image_binary(geometry, start_date, end_date):
+    token = get_sentinel_token()
 
-# def save_ndvi_result(request):
-#     if request.method == "POST":
-#         body = json.loads(request.body)
-#
-#         geometry_data = body['geometry']
-#         farm_id = body['farm_id']  #
-#
-#         # 从 Sentinel Hub
-#         ndvi_image_binary = get_ndvi_image_binary(geometry_data, ...)
-#         # 处理数据
-#         geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-#         farm = FarmAcc_farminfo.objects.get(id=farm_id)
-#
-#         filename = f"ndvi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
-#
-#         region = NDVIRegion(farm=farm, geometry=geo_obj)
-#         region.image.save(filename, ContentFile(ndvi_image_binary), save=True)
-#
-#         return JsonResponse({'status': 'ok', 'id': region.id})
+    payload = {
+        "input": {
+            "bounds": {
+                "geometry": geometry
+            },
+            "data": [{
+                "type": "sentinel-2-l2a",
+                "dataFilter": {
+                    "timeRange": {
+                        "from": f"{start_date}T00:00:00Z",
+                        "to": f"{end_date}T23:59:59Z"
+                    }
+                }
+            }]
+        },
+        "output": {
+            "width": 512,
+            "height": 512,
+            "responses": [{
+                "identifier": "default",
+                "format": {"type": "image/png"}
+            }]
+        },
+        "evalscript": evalscript_ndvi
+    }
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post("https://services.sentinel-hub.com/api/v1/process",
+                             headers=headers,
+                             json=payload)
+
+    if response.status_code == 200:
+        return response.content
+    else:
+        raise Exception(f"Sentinel error: {response.status_code}, {response.text}")
+def save_ndvi_result(request):
+    if request.method == "POST":
+        body = json.loads(request.body)
+
+        geometry_data = body['geometry']
+        farm_id = body['farm_id']  # 👈 农场 ID，前端传过来
+
+        # 从 Sentinel Hub 得到的响应（你自己写的 API 请求逻辑）
+        ndvi_image_binary = get_ndvi_image_binary(geometry_data, ...)  # 返回 bytes 类型
+
+        # 处理数据
+        geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
+        farm = FarmAcc_farminfo.objects.get(id=farm_id)
+
+        filename = f"ndvi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
+
+        region = NDVIRegion(farm=farm, geometry=geo_obj)
+        region.image.save(filename, ContentFile(ndvi_image_binary), save=True)
+
+        return JsonResponse({'status': 'ok', 'id': region.id})

@@ -138,7 +138,7 @@
     const farmID = window.currentFarmID || 1;  // 默认 1，可替换为你的逻辑
 
     // 3. 发起 POST 请求保存
-    fetch("/api/save-ndvi/", {
+    fetch("/map/api/save-ndvi/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
