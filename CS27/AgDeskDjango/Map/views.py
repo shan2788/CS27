@@ -21,9 +21,6 @@ def map_view(request):
     return render(request, 'Map/map.html', {"sentinel_instance_id": sentinel_instance_id})
 
 
-
-
-
 def get_ndvi_image_binary(geometry, start_date, end_date, evalscript):
     """
     img
