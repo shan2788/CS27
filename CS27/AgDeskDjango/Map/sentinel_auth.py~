@@ -28,3 +28,5 @@ def get_sentinel_token():
     _token_expiry = now + token_data["expires_in"] - 60
 
     return _token
+
+token= get_sentinel_token()
