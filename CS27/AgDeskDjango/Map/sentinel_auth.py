@@ -29,3 +29,4 @@ def get_sentinel_token():
 
     return _token
 
+token= get_sentinel_token()

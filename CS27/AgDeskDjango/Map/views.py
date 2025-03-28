@@ -7,7 +7,7 @@ from django.core.files.base import ContentFile
 import json, requests, datetime, logging
 
 from .models import NDVIRegion
-from .sentinel_auth import get_sentinel_token
+from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
 from  FarmAcc.models import FarmInfo
 
 # Configure logging
@@ -17,7 +17,8 @@ token = get_sentinel_token()
 
 @login_required(login_url="login")
 def map_view(request):
-    return render(request, 'Map/map.html')
+    sentinel_instance_id = get_sentinel_instance_id()
+    return render(request, 'Map/map.html', {"sentinel_instance_id": sentinel_instance_id})
 
 
 
