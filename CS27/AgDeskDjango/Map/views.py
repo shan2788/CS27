@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
@@ -180,3 +180,15 @@ def save_ndvi_result(request):
     except Exception as e:
         logger.error("Error saving NDVI region: " + str(e))
         return JsonResponse({'error': str(e)}, status=400)
+    
+
+@login_required
+def region_history(request, farm_id):
+    """
+    Show the history of NDVI regions for a farm of current user
+    """
+    # get the farm object
+    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
+    # get all regions for the farm
+    regions = NDVIRegion.objects.filter(farm=farm).order_by('-created_at')
+    return render(request, 'Map/region_history.html', {'farm': farm, 'regions': regions})
