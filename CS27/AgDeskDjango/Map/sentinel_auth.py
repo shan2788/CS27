@@ -5,6 +5,9 @@ load_dotenv()
 _token = None
 _token_expiry = 0
 
+def get_sentinel_instance_id():
+    return os.getenv("SENTINEL_HUB_INSTANCE_ID")
+
 def get_sentinel_token():
     global _token, _token_expiry
 
@@ -28,5 +31,3 @@ def get_sentinel_token():
     _token_expiry = now + token_data["expires_in"] - 60
 
     return _token
-
-token= get_sentinel_token()
