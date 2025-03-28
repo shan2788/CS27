@@ -28,3 +28,7 @@ def get_sentinel_token():
     _token_expiry = now + token_data["expires_in"] - 60
 
     return _token
+
+
+def get_sentinel_instance_id():
+    return os.getenv("SENTINEL_HUB_INSTANCE_ID")
