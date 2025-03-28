@@ -13,18 +13,20 @@ from  FarmAcc.models import FarmInfo
 # Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
-
+token = get_sentinel_token()
 
 @login_required(login_url="login")
 def map_view(request):
     return render(request, 'Map/map.html')
 
 
+
+
+
 def get_ndvi_image_binary(geometry, start_date, end_date, evalscript):
     """
-    请求 Sentinel Hub 获取 NDVI 图像
+    img
     """
-    token = get_sentinel_token()
 
     payload = {
         "input": {
@@ -69,7 +71,7 @@ def get_ndvi_image_binary(geometry, start_date, end_date, evalscript):
 @csrf_exempt
 def ndvi_view(request):
     """
-    返回 NDVI 图像预览（不保存到数据库）
+    only get pic, not save
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
@@ -112,6 +114,8 @@ def ndvi_view(request):
         }"""
 
         image_data = get_ndvi_image_binary(geometry, start_date, end_date, evalscript_ndvi)
+        statistics_response = get_statistics_data(request)
+        # print(statistics_response)
         return HttpResponse(image_data, content_type="image/png")
 
     except Exception as e:
@@ -122,7 +126,7 @@ def ndvi_view(request):
 @csrf_exempt
 def save_ndvi_result(request):
     """
-    保存 NDVI 区域和图像到数据库
+    save
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
@@ -192,3 +196,75 @@ def region_history(request, farm_id):
     # get all regions for the farm
     regions = NDVIRegion.objects.filter(farm=farm).order_by('-created_at')
     return render(request, 'Map/region_history.html', {'farm': farm, 'regions': regions})
+
+def get_statistics_data(request):
+    token = get_sentinel_token()
+    data = json.loads(request.body)
+    geometry = data["geometry"]
+    start_date = data.get("start_date", "2025-02-28")
+    end_date = data.get("end_date", "2025-03-28")
+
+    evalscript = """//VERSION=3
+    function setup() {
+      return {
+        input: ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12", "dataMask"],
+        output: [
+          { id: "allBands", bands: 10, sampleType: "FLOAT32" },
+          { id: "dataMask", bands: 1 }
+        ]
+      };
+    }
+
+    function evaluatePixel(sample) {
+      if (sample.dataMask === 0) {
+        return {
+          allBands: [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN],
+          dataMask: [0]
+        };
+      }
+      return {
+        allBands: [sample.B02, sample.B03, sample.B04, sample.B05, sample.B06, sample.B07, sample.B08, sample.B8A, sample.B11, sample.B12],
+        dataMask: [1]
+      };
+    }"""
+
+    payload = {
+        "input": {
+            "bounds": {
+                "geometry": geometry
+            },
+            "data": [{"type": "sentinel-2-l2a"}]
+        },
+        "aggregation": {
+            "timeRange": {
+                "from": f"{start_date}T00:00:00Z",
+                "to": f"{end_date}T23:59:59Z"
+            },
+            "aggregationInterval": {"of": "P10D"},
+            "width": 512,
+            "height": 343.697,
+            "evalscript": evalscript
+        },
+        "calculations": {
+            "default": {
+                "statistics": {
+                    "allBands": {
+                        "statistics": ["min", "max", "mean", "stDev"]
+                    }
+                }
+            }
+        }
+    }
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post("https://services.sentinel-hub.com/api/v1/statistics", headers=headers, json=payload)
+
+    if response.status_code == 200:
+        print(response.json())
+        return response.json()
+    else:
+        raise Exception(f"Statistics error {response.status_code}: {response.text}")
