@@ -137,7 +137,6 @@ def save_ndvi_result(request):
         geometry_data = data['geometry']
         start_date = data.get('start_date', "2025-02-23")
         end_date = data.get('end_date', "2025-03-23")
-
         evalscript_ndvi = """//VERSION=3
         function setup() {
             return {
@@ -169,7 +168,6 @@ def save_ndvi_result(request):
         }"""
 
         image_binary = get_ndvi_image_binary(geometry_data, start_date, end_date, evalscript_ndvi)
-
         geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
         farm = FarmInfo.objects.get(id=farmID)
         region = NDVIRegion(farm=farm, geometry=geo_obj)
