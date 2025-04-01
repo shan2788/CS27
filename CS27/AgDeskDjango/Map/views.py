@@ -114,8 +114,10 @@ def ndvi_view(request):
         }"""
 
         image_data = get_ndvi_image_binary(geometry, start_date, end_date, evalscript_ndvi)
-        statistics_response = get_statistics_data(request)
-        # print(statistics_response)
+        # FIXME
+        # # just for test
+        # test_data = get_statistics_for_model_input(request)
+        # print(test_data)
         return HttpResponse(image_data, content_type="image/png")
 
     except Exception as e:
@@ -262,10 +264,63 @@ def get_statistics_data(request):
     response = requests.post("https://services.sentinel-hub.com/api/v1/statistics", headers=headers, json=payload)
 
     if response.status_code == 200:
-        print(response.json())
         return response.json()
     else:
         raise Exception(f"Statistics error {response.status_code}: {response.text}")
+
+
+def get_statistics_for_model_input(request):
+    """
+    Extract useful data from the statistics response and format it for model input.
+    Outputs:
+        A list of dictionaries, where each dictionary contains:
+        - "from": Start of the time interval
+        - "to": End of the time interval
+        - "bands_mean": A dictionary of mean values for all 10 bands
+        - "ndvi_mean": The calculated NDVI mean value for the interval
+    """
+    try:
+        # get the statistics data from the request
+        statistics_response = get_statistics_data(request)
+        data_list = statistics_response.get("data", [])
+
+        # format the data
+        results = []
+
+        for entry in data_list:
+            interval = entry.get("interval", {})
+            bands_stats = (
+                entry.get("outputs", {})
+                .get("allBands", {})
+                .get("bands", {})
+            )
+
+            # extract mean values for each band
+            bands_mean = {}
+            for band_name, band_data in bands_stats.items():
+                bands_mean[band_name] = band_data.get("stats", {}).get("mean", None)
+
+            # calculate NDVI mean
+            b08_mean = bands_mean.get("B8", None)  # NIR 波段
+            b04_mean = bands_mean.get("B4", None)  # Red 波段
+            ndvi_mean = None
+            if b08_mean is not None and b04_mean is not None and (b08_mean + b04_mean) != 0:
+                ndvi_mean = (b08_mean - b04_mean) / (b08_mean + b04_mean)
+
+            # add to results
+            results.append({
+                "from": interval.get("from"),
+                "to": interval.get("to"),
+                "bands_mean": bands_mean,
+                "ndvi_mean": ndvi_mean
+            })
+
+        # return the formatted results
+        return results
+
+    except Exception as e:
+        logger.error(f"Error processing statistics for model input: {e}")
+        return []
 
 
 @csrf_exempt
