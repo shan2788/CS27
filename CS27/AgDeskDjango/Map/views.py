@@ -289,33 +289,30 @@ def get_statistics_for_model_input(request):
         A list of dictionaries, where each dictionary contains:
         - "from": Start of the time interval
         - "to": End of the time interval
-        - "bands_mean": A dictionary of mean values for all 10 bands
+        - "bands_mean": A dictionary of mean values for all bands
         - "ndvi_mean": The calculated NDVI mean value for the interval
     """
     try:
-        # get the statistics data from the request
+        # get statistics data from the request
         statistics_response = get_statistics_data(request)
         data_list = statistics_response.get("data", [])
 
-        # format the data
+        # Initialize results list
         results = []
 
         for entry in data_list:
             interval = entry.get("interval", {})
-            bands_stats = (
-                entry.get("outputs", {})
-                .get("allBands", {})
-                .get("bands", {})
-            )
+            outputs = entry.get("outputs", {})
 
-            # extract mean values for each band
+            # extract band statistics
             bands_mean = {}
-            for band_name, band_data in bands_stats.items():
-                bands_mean[band_name] = band_data.get("stats", {}).get("mean", None)
+            for band_name, band_data in outputs.items():
+                band_stats = band_data.get("bands", {}).get("B0", {}).get("stats", {})
+                bands_mean[band_name] = band_stats.get("mean", None)
 
             # calculate NDVI mean
-            b08_mean = bands_mean.get("B8", None)  # NIR 波段
-            b04_mean = bands_mean.get("B4", None)  # Red 波段
+            b08_mean = bands_mean.get("B08", None)  # NIR
+            b04_mean = bands_mean.get("B04", None)  # Red
             ndvi_mean = None
             if b08_mean is not None and b04_mean is not None and (b08_mean + b04_mean) != 0:
                 ndvi_mean = (b08_mean - b04_mean) / (b08_mean + b04_mean)
@@ -328,7 +325,7 @@ def get_statistics_for_model_input(request):
                 "ndvi_mean": ndvi_mean
             })
 
-        # return the formatted results
+        # return results
         return results
 
     except Exception as e:
