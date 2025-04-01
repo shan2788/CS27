@@ -34,6 +34,7 @@
         <button id="end-draw" class="btn btn-secondary">Cancel Drawing</button>
         <button class="btn btn-success" onclick="submitPolygon()">Get NDVI</button>
         <button id="save-ndvi-btn" class="btn btn-success">💾 Save NDVI Region</button>
+        <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button>
     </div>
 
     <!-- NDVI Image Display -->
@@ -183,7 +184,50 @@
         alert("Error saving NDVI region.");
         console.error(err);
     });
-});
+  });
+
+  document.getElementById("generate-report-btn").addEventListener("click", function () {
+    if (!drawnPolygon) {
+        alert("Please draw a region first.");
+        return;
+    }
+
+    const geojson = drawnPolygon.toGeoJSON();
+    const startDate = document.getElementById("start-date").value;
+    const endDate = document.getElementById("end-date").value;
+
+    fetch("/map/api/generate-report/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+            geometry: geojson.geometry,
+            start_date: startDate,
+            end_date: endDate
+        })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.blob(); // Assuming the report is returned as a file (e.g., PDF)
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = "NDVI_Report.pdf"; // Default file name
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        alert("Report downloaded successfully!");
+    })
+    .catch(err => {
+        alert("Error generating report.");
+        console.error(err);
+    });
+  });
 
 
 

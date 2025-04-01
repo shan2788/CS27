@@ -5,6 +5,8 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
 import json, requests, datetime, logging
+from reportlab.pdfgen import canvas
+from io import BytesIO
 
 from .models import NDVIRegion
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
@@ -264,3 +266,46 @@ def get_statistics_data(request):
         return response.json()
     else:
         raise Exception(f"Statistics error {response.status_code}: {response.text}")
+
+
+@csrf_exempt
+def generate_report(request):
+    """
+    Generate a report for the selected NDVI region
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        start_date = data.get('start_date', "2025-02-23")
+        end_date = data.get('end_date', "2025-03-23")
+
+        # Example: Fetch NDVI statistics (you can customize this part)
+        ndvi_stats = {
+            "mean": 0.45,
+            "min": -0.2,
+            "max": 0.8,
+            "area": 12345  # Example area in square meters
+        }
+
+        # Generate PDF report
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer)
+        p.drawString(100, 800, "NDVI Report")
+        p.drawString(100, 780, f"Start Date: {start_date}")
+        p.drawString(100, 760, f"End Date: {end_date}")
+        p.drawString(100, 740, f"Mean NDVI: {ndvi_stats['mean']}")
+        p.drawString(100, 720, f"Min NDVI: {ndvi_stats['min']}")
+        p.drawString(100, 700, f"Max NDVI: {ndvi_stats['max']}")
+        p.drawString(100, 680, f"Area: {ndvi_stats['area']} m²")
+        p.showPage()
+        p.save()
+
+        # Return PDF as response
+        buffer.seek(0)
+        return HttpResponse(buffer, content_type='application/pdf')
+
+    except Exception as e:
+        logger.error(f"Error generating report: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
