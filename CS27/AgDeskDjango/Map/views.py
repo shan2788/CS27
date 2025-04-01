@@ -207,9 +207,20 @@ def get_statistics_data(request):
     evalscript = """//VERSION=3
     function setup() {
       return {
-        input: ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12", "dataMask"],
+        input: ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12", "dataMask"],
         output: [
-          { id: "allBands", bands: 10, sampleType: "FLOAT32" },
+          { id: "B01", bands: 1, sampleType: "FLOAT32" },
+          { id: "B02", bands: 1, sampleType: "FLOAT32" },
+          { id: "B03", bands: 1, sampleType: "FLOAT32" },
+          { id: "B04", bands: 1, sampleType: "FLOAT32" },
+          { id: "B05", bands: 1, sampleType: "FLOAT32" },
+          { id: "B06", bands: 1, sampleType: "FLOAT32" },
+          { id: "B07", bands: 1, sampleType: "FLOAT32" },
+          { id: "B08", bands: 1, sampleType: "FLOAT32" },
+          { id: "B8A", bands: 1, sampleType: "FLOAT32" },
+          { id: "B09", bands: 1, sampleType: "FLOAT32" },
+          { id: "B11", bands: 1, sampleType: "FLOAT32" },
+          { id: "B12", bands: 1, sampleType: "FLOAT32" },
           { id: "dataMask", bands: 1 }
         ]
       };
@@ -218,15 +229,21 @@ def get_statistics_data(request):
     function evaluatePixel(sample) {
       if (sample.dataMask === 0) {
         return {
-          allBands: [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN],
-          dataMask: [0]
+          B01: [NaN], B02: [NaN], B03: [NaN], B04: [NaN], B05: [NaN], B06: [NaN], B07: [NaN],
+          B08: [NaN], B8A: [NaN], B09: [NaN], B11: [NaN], B12: [NaN], dataMask: [0]
         };
       }
       return {
-        allBands: [sample.B02, sample.B03, sample.B04, sample.B05, sample.B06, sample.B07, sample.B08, sample.B8A, sample.B11, sample.B12],
-        dataMask: [1]
+          B01: [sample.B01], B02: [sample.B02], B03: [sample.B03], B04: [sample.B04],
+          B05: [sample.B05], B06: [sample.B06], B07: [sample.B07], B08: [sample.B08],
+          B8A: [sample.B8A], B09: [sample.B09], B11: [sample.B11], B12: [sample.B12],
+          dataMask: [1]
       };
     }"""
+
+    # Automatically generate statistics config for each band
+    band_ids = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"]
+    stats = {band: {"statistics": ["min", "max", "mean", "stDev"]} for band in band_ids}
 
     payload = {
         "input": {
@@ -242,16 +259,12 @@ def get_statistics_data(request):
             },
             "aggregationInterval": {"of": "P10D"},
             "width": 512,
-            "height": 343.697,
+            "height": 512,
             "evalscript": evalscript
         },
         "calculations": {
             "default": {
-                "statistics": {
-                    "allBands": {
-                        "statistics": ["min", "max", "mean", "stDev"]
-                    }
-                }
+                "statistics": stats
             }
         }
     }
