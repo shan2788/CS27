@@ -308,7 +308,11 @@ def get_statistics_for_model_input(request):
             bands_mean = {}
             for band_name, band_data in outputs.items():
                 band_stats = band_data.get("bands", {}).get("B0", {}).get("stats", {})
-                bands_mean[band_name] = band_stats.get("mean", None)
+                mean_value = band_stats.get("mean", None)
+                if mean_value is not None:
+                    bands_mean[band_name] = mean_value * 10000  # 将平均值乘以 10000
+                else:
+                    bands_mean[band_name] = None
 
             # calculate NDVI mean
             b08_mean = bands_mean.get("B08", None)  # NIR
