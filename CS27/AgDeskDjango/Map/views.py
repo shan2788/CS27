@@ -389,10 +389,13 @@ def make_prediction(model, encoder, formatted_data):
         # Make predictions using the model
         predictions = model.predict(band_values)
 
-        # Decode the predicted labels using the encoder
-        decoded_predictions = encoder.inverse_transform(predictions)[0]
+        # Ensure predictions are a 1D array
+        predictions = np.array(predictions).flatten()
 
-        return decoded_predictions
+        # Decode the predicted labels using the encoder
+        decoded_results = encoder.inverse_transform(predictions)
+
+        return decoded_results
 
     except Exception as e:
         logger.error(f"Error in make_prediction: {e}")
