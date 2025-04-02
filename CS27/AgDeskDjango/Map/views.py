@@ -7,6 +7,8 @@ from django.core.files.base import ContentFile
 import json, requests, datetime, logging
 from reportlab.pdfgen import canvas
 from io import BytesIO
+import joblib
+import os
 
 from .models import NDVIRegion
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
@@ -16,6 +18,11 @@ from  FarmAcc.models import FarmInfo
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 token = get_sentinel_token()
+
+# Set up paths for model and encoder
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "rf_model.pkl")
+ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder.pkl")
 
 @login_required(login_url="login")
 def map_view(request):
@@ -337,6 +344,62 @@ def get_statistics_for_model_input(request):
         return []
 
 
+import numpy as np
+
+def make_prediction(model, encoder, formatted_data):
+    """
+    Use the given model and encoder to predict the class of the plant.
+
+    Args:
+        model: The trained machine learning model (e.g., Random Forest).
+        encoder: The label encoder used to encode class labels.
+        formatted_data: A list of dictionaries, where each dictionary contains:
+            - "from": Start of the time interval
+            - "to": End of the time interval
+            - "bands_mean": A dictionary of mean values for all bands
+            - "ndvi_mean": The calculated NDVI mean value for the interval
+
+    Returns:
+        A string representing the predicted class of the plant.
+    """
+    try:
+        # Extract the band values from the formatted data
+        band_values = []
+        for entry in formatted_data:
+            bands_mean = entry["bands_mean"]
+            # Ensure the order of bands matches the expected input format
+            band_values.append([
+                bands_mean.get("B01", 0),
+                bands_mean.get("B02", 0),
+                bands_mean.get("B03", 0),
+                bands_mean.get("B04", 0),
+                bands_mean.get("B05", 0),
+                bands_mean.get("B06", 0),
+                bands_mean.get("B07", 0),
+                bands_mean.get("B08", 0),
+                bands_mean.get("B8A", 0),
+                bands_mean.get("B09", 0),
+                bands_mean.get("B11", 0),
+                bands_mean.get("B12", 0)
+            ])
+
+        # Convert to a NumPy array for model input
+        band_values = np.array(band_values)
+
+        # Make predictions using the model
+        predictions = model.predict(band_values)
+
+        # Decode the predicted labels using the encoder
+        decoded_predictions = encoder.inverse_transform(predictions)[0]
+
+        return decoded_predictions
+
+    except Exception as e:
+        logger.error(f"Error in make_prediction: {e}")
+        return "Error in prediction"
+    
+
+
 @csrf_exempt
 def generate_report(request):
     """
@@ -351,23 +414,46 @@ def generate_report(request):
         end_date = data.get('end_date', "2025-03-23")
 
         # Example: Fetch NDVI statistics (you can customize this part)
-        ndvi_stats = {
-            "mean": 0.45,
-            "min": -0.2,
-            "max": 0.8,
-            "area": 12345  # Example area in square meters
-        }
+        formatted_data = get_statistics_for_model_input(request)
+        print(formatted_data)
+        model = joblib.load(MODEL_PATH)
+        encoder = joblib.load(ENCODER_PATH)
+        predicted_crop = make_prediction(model, encoder, formatted_data)
+        # FIXME: just test the output is useful
+        print(predicted_crop)
 
         # Generate PDF report
         buffer = BytesIO()
         p = canvas.Canvas(buffer)
+
+        # Title and metadata
         p.drawString(100, 800, "NDVI Report")
         p.drawString(100, 780, f"Start Date: {start_date}")
         p.drawString(100, 760, f"End Date: {end_date}")
-        p.drawString(100, 740, f"Mean NDVI: {ndvi_stats['mean']}")
-        p.drawString(100, 720, f"Min NDVI: {ndvi_stats['min']}")
-        p.drawString(100, 700, f"Max NDVI: {ndvi_stats['max']}")
-        p.drawString(100, 680, f"Area: {ndvi_stats['area']} m²")
+
+        # added predicted crop
+        p.drawString(100, 740, f"Predicted Crop: {predicted_crop}")
+
+        # added NDVI mean and bands mean
+        y_position = 720
+        for entry in formatted_data:
+            p.drawString(100, y_position, f"Time Interval: {entry['from']} → {entry['to']}")
+            y_position -= 20
+            p.drawString(100, y_position, f"NDVI Mean: {entry['ndvi_mean']:.4f}")
+            y_position -= 20
+            p.drawString(100, y_position, "Bands Mean (x10000):")
+            y_position -= 20
+
+            for band, mean in entry["bands_mean"].items():
+                p.drawString(120, y_position, f"{band}: {mean:.2f}")
+                y_position -= 20
+
+            y_position -= 10
+            if y_position < 100:
+                p.showPage()
+                y_position = 800
+
+        # save the PDF
         p.showPage()
         p.save()
 
