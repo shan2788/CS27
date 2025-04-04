@@ -237,7 +237,7 @@ def get_statistics_data(request):
     }
 
     function evaluatePixel(sample) {
-      if (sample.CLM > 0.5 || sample.dataMask === 0) {
+      if (sample.dataMask === 0) {
         return {
           B01: [NaN], B02: [NaN], B03: [NaN], B04: [NaN], B05: [NaN], B06: [NaN], B07: [NaN],
           B08: [NaN], B8A: [NaN], B09: [NaN], B11: [NaN], B12: [NaN], dataMask: [0]
