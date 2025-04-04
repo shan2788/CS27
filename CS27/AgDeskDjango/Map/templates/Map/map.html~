@@ -34,7 +34,18 @@
         <button id="end-draw" class="btn btn-secondary">Cancel Drawing</button>
         <button class="btn btn-success" onclick="submitPolygon()">Get NDVI</button>
         <button id="save-ndvi-btn" class="btn btn-success">💾 Save NDVI Region</button>
+        <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button>
     </div>
+    <div class="mb-3">
+      <label for="draw-shape">Select Shape:</label>
+      <select id="draw-shape" class="form-select" style="width: 200px;">
+          <option value="polygon" selected>Polygon</option>
+          <option value="rectangle">Rectangle</option>
+          <option value="custom">Custom</option>
+      </select>
+
+    </div>
+
 
     <!-- NDVI Image Display -->
     <div class="row mt-4">
@@ -96,13 +107,13 @@
     }
   });
 
-  document.getElementById("start-draw").addEventListener("click", function() {
-    drawHandler.enable();
-  });
+  // document.getElementById("start-draw").addEventListener("click", function() {
+  //   drawHandler.enable();
+  // });
 
-  document.getElementById("end-draw").addEventListener("click", function() {
-    drawHandler.disable();
-  });
+  // document.getElementById("end-draw").addEventListener("click", function() {
+  //   drawHandler.disable();
+  // });
 
   map.on(L.Draw.Event.CREATED, function (event) {
     if (drawnPolygon) map.removeLayer(drawnPolygon);
@@ -115,11 +126,9 @@
       alert("Please draw a region first.");
       return;
     }
-
     const geojson = drawnPolygon.toGeoJSON();
     const startDate = document.getElementById("start-date").value;
     const endDate = document.getElementById("end-date").value;
-
     fetch("/map/api/ndvi/", {
       method: "POST",
       headers: {
@@ -145,7 +154,6 @@
       console.error(err);
     });
   }
-
   document.getElementById("save-ndvi-btn").addEventListener("click", function () {
     if (!drawnPolygon) {
         alert("Please draw a region first.");
@@ -156,7 +164,7 @@
     const startDate = document.getElementById("start-date").value;
     const endDate = document.getElementById("end-date").value;
 
-    fetch("/map/api/save_ndvi/", {
+    fetch("/map/api/save-ndvi/", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -183,7 +191,125 @@
         alert("Error saving NDVI region.");
         console.error(err);
     });
+  });
+
+  document.getElementById("generate-report-btn").addEventListener("click", function () {
+    if (!drawnPolygon) {
+        alert("Please draw a region first.");
+        return;
+    }
+
+    const geojson = drawnPolygon.toGeoJSON();
+    const startDate = document.getElementById("start-date").value;
+    const endDate = document.getElementById("end-date").value;
+
+    fetch("/map/api/generate-report/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+            geometry: geojson.geometry,
+            start_date: startDate,
+            end_date: endDate
+        })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.blob(); // Assuming the report is returned as a file (e.g., PDF)
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = "NDVI_Report.pdf"; // Default file name
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        alert("Report downloaded successfully!");
+    })
+    .catch(err => {
+        alert("Error generating report.");
+        console.error(err);
+    });
+  });
+
+
+// let drawnFixedPolygon = null; // ✅ 用于保存当前绘图对象
+// const drawnItems = new L.FeatureGroup();
+// let drawnPolygon = null;
+
+
+const customDrawer = new L.Draw.Polygon(map, {
+  allowIntersection: false,
+  showArea: true,
+  drawError: {
+    color: '#e1e100',
+    message: '<strong>Error:</strong> shape invalid!'
+  },
+  shapeOptions: {
+    color: '#97009c',
+    weight: 2,
+    fillOpacity: 0.1
+  }
 });
+
+// 预设形状绘图工具
+const polygonDrawer = new L.Draw.Polygon(map, {
+  allowIntersection: false,
+  showArea: true,
+  shapeOptions: { color: '#97009c', fillOpacity: 0.1 }
+});
+
+const rectangleDrawer = new L.Draw.Rectangle(map, {
+  shapeOptions: { color: '#ff7800', fillOpacity: 0.1 }
+});
+
+const circleDrawer = new L.Draw.Circle(map, {
+  shapeOptions: { color: '#007bff', fillOpacity: 0.1 }
+});
+
+function disableAllDrawers() {
+  polygonDrawer.disable();
+  rectangleDrawer.disable();
+  customDrawer.disable();
+}
+
+
+document.getElementById("start-draw").addEventListener("click", function () {
+  const shape = document.getElementById("draw-shape").value;
+  disableAllDrawers();
+
+  if (shape === "polygon") polygonDrawer.enable();
+  else if (shape === "rectangle") rectangleDrawer.enable();
+  else if (shape === "custom") customDrawer.enable();
+});
+
+document.getElementById("end-draw").addEventListener("click", function () {
+  disableAllDrawers();
+});
+
+map.on(L.Draw.Event.CREATED, function (event) {
+  if (drawnPolygon) {
+    map.removeLayer(drawnPolygon);
+  }
+
+  drawnPolygon = event.layer;
+
+  drawnPolygon.setStyle({
+    fillColor: "#ffffff",
+    fillOpacity: 0.1,   // ✅ 设置为透明不挡地图
+    color: "#ff0000",
+    weight: 2
+  });
+
+  // 直接添加到地图，而不是 FeatureGroup
+  drawnPolygon.addTo(map);
+});
+
+
 
 
 

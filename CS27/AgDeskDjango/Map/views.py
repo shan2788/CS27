@@ -362,6 +362,7 @@ def make_prediction(model, encoder, formatted_data):
     Returns:
         A string representing the predicted class of the plant.
     """
+
     try:
         # Extract the band values from the formatted data
         band_values = []

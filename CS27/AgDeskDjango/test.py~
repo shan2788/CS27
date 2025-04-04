@@ -1,0 +1,4 @@
+from django.contrib.gis.geos import GEOSGeometry
+pnt = GEOSGeometry('POINT(1 1)')
+print(pnt)
+print(pnt.x, pnt.y)
