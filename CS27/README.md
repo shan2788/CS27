@@ -44,7 +44,7 @@ In case you can't see the images below, please check `Platform Setup Instruction
 ![gisExtension](https://i.imgur.com/wnGnOgX.jpg)
 
 - Ensure the selected packages to install are correct before proceding.  
- `If the installer stops responding - WAIT! It will resume`
+  `If the installer stops responding - WAIT! It will resume`
 - On the following menu, leave the option to `skip installation` unchecked and click next.
 - Accept the license agreement in the PostGIS Bundle popup window
 - On the Choose components menu, ensure that the following boxes are checked:
@@ -75,6 +75,10 @@ In case you can't see the images below, please check `Platform Setup Instruction
 
 - Navigate to the project's web folder and copy contents of `.env_defaults` onto a new `.env` file.
 - Change the password here if needed
+- Add your sentinel hub account info icluding:
+  SENTINEL_HUB_CLIENT_ID
+  SENTINEL_HUB_CLIENT_SECRET
+  SENTINEL_HUB_INSTANCE_ID
 
 ![gisExtension](https://i.imgur.com/SglJuCT.png)
 
@@ -86,9 +90,9 @@ In case you can't see the images below, please check `Platform Setup Instruction
 - Check if Python version 3.12 is installed using `py -0`.
 - Create and activate virtual environment:
 
- ```shell
-  py -3.12 -m venv venv
-  .\venv\Scripts\activate.bat
+```shell
+ py -3.12 -m venv venv
+ .\venv\Scripts\activate.bat
 ```
 
 - Install all the required packages:
@@ -96,6 +100,11 @@ In case you can't see the images below, please check `Platform Setup Instruction
 ```shell
   pip install -r requirements.txt
 ```
+
+- If there is some issues that cannot install GDAL package on Windows OS. Please download OSGeo4W which include GDAL package from https://trac.osgeo.org/osgeo4w/ and install with Express option. Then copy the following path to your .env file.
+
+GDAL_LIBRARY_PATH='C:\OSGeo4W\bin\gdal310.dll'
+GEOS_LIBRARY_PATH='C:\OSGeo4W\bin\geos_c.dll'
 
 - Check if the requirements were installed using `pip list`
 - Move to AgDeskDjango directory `cd AgDeskDjango`
@@ -126,6 +135,7 @@ python manage.py runserver
 ```
 
 To check if the tables are being filled:
+
 - Go to `Servers -> PostgreSQL 16 -> Databases -> agdesk -> Schemas -> Tables -> <table name>`
 - Right click the `<table name>` and select `View/Edit Data -> All Rows`
 
