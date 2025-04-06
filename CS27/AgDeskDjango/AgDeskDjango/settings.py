@@ -139,6 +139,11 @@ DATABASES = {
 GDAL_LIBRARY_PATH = os.environ.get('GDAL_LIBRARY_PATH')
 GEOS_LIBRARY_PATH = os.environ.get('GEOS_LIBRARY_PATH', None)
 
+# celery settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
 DATE_INPUT_FORMATS = [
     "%Y-%m-%d" ,  # "2006-10-25"
     "%m/%d/%Y" ,  # "10/25/2006"

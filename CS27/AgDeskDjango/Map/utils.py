@@ -1,0 +1,102 @@
+# write some useful functions for the project
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase.pdfmetrics import stringWidth
+from shapely.geometry import shape
+from shapely.ops import unary_union
+
+def are_geometries_similar(geometry1, geometry2, threshold=0.8):
+    """
+    Check if two geometries are similar based on their intersection area.
+
+    Args:
+        geometry1: The first geometry (GeoJSON format).
+        geometry2: The second geometry (GeoJSON format).
+        threshold: The minimum overlap ratio to consider as similar (default is 0.8).
+
+    Returns:
+        True if the overlap ratio is greater than or equal to the threshold, False otherwise.
+    """
+    geom1 = shape(geometry1)
+    geom2 = shape(geometry2)
+
+    # Calculate intersection and union areas
+    intersection_area = geom1.intersection(geom2).area
+    union_area = unary_union([geom1, geom2]).area
+
+    # Calculate overlap ratio
+    overlap_ratio = intersection_area / union_area
+
+    return overlap_ratio >= threshold
+
+
+def draw_wrapped_text(p, text, x, y, max_width, line_height=15):
+    """
+    Draw text with automatic line wrapping.
+
+    Args:
+        p: The canvas object.
+        text: The text to draw.
+        x: The x-coordinate for the text.
+        y: The starting y-coordinate for the text.
+        max_width: The maximum width of a line before wrapping.
+        line_height: The height between lines.
+    """
+
+    words = text.split(' ')
+    line = ''
+    for word in words:
+        # Check if adding the next word exceeds the max width
+        if stringWidth(line + word, p._fontname, p._fontsize) <= max_width:
+            line += word + ' '
+        else:
+            # Draw the current line and start a new one
+            p.drawString(x, y, line.strip())
+            y -= line_height
+            line = word + ' '
+    # Draw the last line
+    if line:
+        p.drawString(x, y, line.strip())
+    return y  # Return the final y-coordinate
+
+
+def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer)
+
+    # Title and metadata
+    p.drawString(100, 800, "NDVI Report")
+    p.drawString(100, 780, f"Start Date: {start_date}")
+    p.drawString(100, 760, f"End Date: {end_date}")
+
+    # Add predicted crop and biomass with wrapping
+    y_position = 740
+    y_position = draw_wrapped_text(p, f"Predicted Crop: {predicted_crop}", 100, y_position, max_width=400)
+    y_position = draw_wrapped_text(p, f"Predicted Biomass: {predicted_biomass}", 100, y_position - 20, max_width=400)
+
+    # Add NDVI mean and bands mean
+    y_position -= 20
+    for entry in formatted_data:
+        y_position = draw_wrapped_text(p, f"Time Interval: {entry['from']} → {entry['to']}", 100, y_position, max_width=400)
+        y_position -= 20
+        y_position = draw_wrapped_text(p, f"NDVI Mean: {entry['ndvi_mean']:.4f}", 100, y_position, max_width=400)
+        y_position -= 20
+        p.drawString(100, y_position, "Bands Mean (x10000):")
+        y_position -= 20
+
+        for band, mean in entry["bands_mean"].items():
+            y_position = draw_wrapped_text(p, f"{band}: {mean:.2f}", 120, y_position, max_width=400)
+            y_position -= 20
+
+        y_position -= 10
+        if y_position < 100:
+            p.showPage()
+            y_position = 800
+
+    # Save the PDF
+    p.showPage()
+    p.save()
+
+    # Return PDF as response
+    buffer.seek(0)
+    return buffer

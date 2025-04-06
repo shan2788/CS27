@@ -1,0 +1,148 @@
+import numpy as np
+import torch
+
+def make_crop_prediction(model, encoder, formatted_data, logger):
+    """
+    Use the given model and encoder to predict the class of the plant.
+
+    Args:
+        model: The trained machine learning model (e.g., Random Forest).
+        encoder: The label encoder used to encode class labels.
+        formatted_data: A list of dictionaries, where each dictionary contains:
+            - "from": Start of the time interval
+            - "to": End of the time interval
+            - "bands_mean": A dictionary of mean values for all bands
+            - "ndvi_mean": The calculated NDVI mean value for the interval
+
+    Returns:
+        A string representing the predicted class of the plant.
+    """
+
+    try:
+        # Extract the band values from the formatted data
+        band_values = []
+        for entry in formatted_data:
+            bands_mean = entry["bands_mean"]
+            # Ensure the order of bands matches the expected input format
+            band_values.append([
+                bands_mean.get("B01", 0),
+                bands_mean.get("B02", 0),
+                bands_mean.get("B03", 0),
+                bands_mean.get("B04", 0),
+                bands_mean.get("B05", 0),
+                bands_mean.get("B06", 0),
+                bands_mean.get("B07", 0),
+                bands_mean.get("B08", 0),
+                bands_mean.get("B8A", 0),
+                bands_mean.get("B09", 0),
+                bands_mean.get("B11", 0),
+                bands_mean.get("B12", 0)
+            ])
+
+        # Convert to a NumPy array for model input
+        band_values = np.array(band_values)
+
+        # Make predictions using the model
+        predictions = model.predict(band_values)
+
+        # Ensure predictions are a 1D array
+        predictions = np.array(predictions).flatten()
+
+        # Decode the predicted labels using the encoder
+        decoded_results = encoder.inverse_transform(predictions)
+
+        return decoded_results
+
+    except Exception as e:
+        logger.error(f"Error in make_crop_prediction: {e}")
+        return "Error in prediction"
+    
+
+def calculate_evi(bands_mean, logger):
+    """
+    Calculate the Enhanced Vegetation Index (EVI) from band means.
+
+    Args:
+        bands_mean: A dictionary containing mean values for all bands.
+
+    Returns:
+        The calculated EVI value.
+    """
+    try:
+        G = 2.5
+        C1 = 6.0
+        C2 = 7.5
+        L = 1.0
+
+        nir = bands_mean.get("B08", 0)  # Near-infrared band
+        red = bands_mean.get("B04", 0)  # Red band
+        blue = bands_mean.get("B02", 0)  # Blue band
+
+        # Avoid division by zero
+        denominator = (nir + C1 * red - C2 * blue + L)
+        if denominator == 0:
+            return 0
+
+        evi = G * (nir - red) / denominator
+        return evi
+
+    except Exception as e:
+        logger.error(f"Error calculating EVI: {e}")
+        return 0
+    
+
+def make_biomass_prediction(model, formatted_data, logger):
+    """
+    Predict biomass using the given model and formatted data.
+
+    Args:
+        model: The trained machine learning model for biomass prediction.
+        formatted_data: A list of dictionaries, where each dictionary contains:
+            - "from": Start of the time interval
+            - "to": End of the time interval
+            - "bands_mean": A dictionary of mean values for all bands
+            - "ndvi_mean": The calculated NDVI mean value for the interval
+
+    Returns:
+        A list of predicted biomass values.
+    """
+    model.eval()  # Set the model to evaluation mode
+    try:
+        # Extract the band values and indices (NDVI, EVI) from the formatted data
+        band_values = []
+        for entry in formatted_data:
+            bands_mean = entry["bands_mean"]
+            ndvi_mean = entry.get("ndvi_mean", 0)  # NDVI mean value
+            evi_mean = calculate_evi(bands_mean, logger)  # Calculate EVI (see helper function below)
+
+            # Ensure the order of inputs matches the expected input format
+            band_values.append([
+                ndvi_mean,  # NDVI
+                evi_mean,   # EVI
+                bands_mean.get("B01", 0),
+                bands_mean.get("B02", 0),
+                bands_mean.get("B03", 0),
+                bands_mean.get("B04", 0),
+                bands_mean.get("B05", 0),
+                bands_mean.get("B06", 0),
+                bands_mean.get("B07", 0),
+                bands_mean.get("B08", 0),
+                bands_mean.get("B8A", 0),
+                bands_mean.get("B11", 0),
+                bands_mean.get("B12", 0)
+            ])
+
+        # Convert to a NumPy array for model input
+        band_values = np.array(band_values)
+        band_values_tensor = torch.tensor(band_values, dtype=torch.float32)
+
+        # Make predictions using the model
+        with torch.no_grad():
+            predictions = model(band_values_tensor)
+        predictions = predictions.numpy()
+
+        return predictions
+
+    except Exception as e:
+        logger.error(f"Error in make_biomass_prediction: {e}")
+        return "Error in prediction"

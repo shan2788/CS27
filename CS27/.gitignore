@@ -54,3 +54,9 @@ AgDeskDjango/AgDeskDjango/local_settings.py
 AgDeskDjango/utils/databaseConfig.py
 .vscode/
 /AgDeskDjango/media/**/*.*
+
+# Ignore everything in the cache folder
+AgDeskDjango/Map/cache/*
+
+# Allow the cache folder itself
+!AgDeskDjango/Map/cache/

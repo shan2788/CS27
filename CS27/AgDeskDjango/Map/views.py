@@ -5,16 +5,16 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
 import json, requests, datetime, logging
-from reportlab.pdfgen import canvas
-from io import BytesIO
 import joblib
 import os
-import numpy as np
 import torch
+import hashlib
 
 from .models import NDVIRegion
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
 from  FarmAcc.models import FarmInfo
+from .predictions import make_crop_prediction, make_biomass_prediction
+from .utils import generate_pdf_report, are_geometries_similar
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -26,6 +26,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CROP_MODEL_PATH = os.path.join(BASE_DIR, "rf_model.pkl")
 CROP_ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder.pkl")
 BIOMASS_MODEL_PATH = os.path.join(BASE_DIR, "biomass_model.pkl")
+CACHE_DIR = os.path.join(BASE_DIR, "cache")
+CACHE_INDEX_PATH = os.path.join(CACHE_DIR, "cache_index.json")
 
 @login_required(login_url="login")
 def map_view(request):
@@ -34,9 +36,23 @@ def map_view(request):
 
 
 def get_ndvi_image_binary(geometry, start_date, end_date, evalscript):
-    """
-    img
-    """
+
+   # Load cache index
+    if os.path.exists(CACHE_INDEX_PATH):
+        with open(CACHE_INDEX_PATH, "r") as f:
+            cache_index = json.load(f)
+    else:
+        cache_index = {}
+
+    # Check for similar geometries in the cache
+    for cached_key, cached_data in cache_index.items():
+        cached_geometry = cached_data["geometry"]
+        if are_geometries_similar(geometry, cached_geometry, threshold=0.8):
+            logger.info("Cache hit based on geometry similarity. Returning cached NDVI image.")
+            cache_path = cached_data["cache_path"]
+            if os.path.exists(cache_path):
+                with open(cache_path, "rb") as f:
+                    return f.read()
 
     payload = {
         "input": {
@@ -73,6 +89,22 @@ def get_ndvi_image_binary(geometry, start_date, end_date, evalscript):
     response = requests.post("https://services.sentinel-hub.com/api/v1/process", headers=headers, json=payload)
 
     if response.status_code == 200:
+        # Save the image to cache
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        cache_key = hashlib.md5(f"{geometry}_{start_date}_{end_date}".encode()).hexdigest()
+        cache_path = os.path.join(CACHE_DIR, f"{cache_key}.png")
+        with open(cache_path, "wb") as f:
+            f.write(response.content)
+
+        # Update cache index
+        cache_index[cache_key] = {
+            "geometry": geometry,
+            "cache_path": cache_path
+        }
+        with open(CACHE_INDEX_PATH, "w") as f:
+            json.dump(cache_index, f)
+
+        logger.info("NDVI image saved to cache.")
         return response.content
     else:
         raise Exception(f"Sentinel error {response.status_code}: {response.text}")
@@ -319,7 +351,6 @@ def get_statistics_for_model_input(request):
             bands_mean = {}
             for band_name, band_data in outputs.items():
                 band_stats = band_data.get("bands", {}).get("B0", {}).get("stats", {})
-                # FIXME: use mean instead of min
                 mean_value = band_stats.get("mean", None)
                 if mean_value is not None:
                     bands_mean[band_name] = mean_value * 10000  # 将平均值乘以 10000
@@ -348,183 +379,6 @@ def get_statistics_for_model_input(request):
         logger.error(f"Error processing statistics for model input: {e}")
         return []
 
-def make_crop_prediction(model, encoder, formatted_data):
-    """
-    Use the given model and encoder to predict the class of the plant.
-
-    Args:
-        model: The trained machine learning model (e.g., Random Forest).
-        encoder: The label encoder used to encode class labels.
-        formatted_data: A list of dictionaries, where each dictionary contains:
-            - "from": Start of the time interval
-            - "to": End of the time interval
-            - "bands_mean": A dictionary of mean values for all bands
-            - "ndvi_mean": The calculated NDVI mean value for the interval
-
-    Returns:
-        A string representing the predicted class of the plant.
-    """
-
-    try:
-        # Extract the band values from the formatted data
-        band_values = []
-        for entry in formatted_data:
-            bands_mean = entry["bands_mean"]
-            # Ensure the order of bands matches the expected input format
-            band_values.append([
-                bands_mean.get("B01", 0),
-                bands_mean.get("B02", 0),
-                bands_mean.get("B03", 0),
-                bands_mean.get("B04", 0),
-                bands_mean.get("B05", 0),
-                bands_mean.get("B06", 0),
-                bands_mean.get("B07", 0),
-                bands_mean.get("B08", 0),
-                bands_mean.get("B8A", 0),
-                bands_mean.get("B09", 0),
-                bands_mean.get("B11", 0),
-                bands_mean.get("B12", 0)
-            ])
-
-        # Convert to a NumPy array for model input
-        band_values = np.array(band_values)
-
-        # Make predictions using the model
-        predictions = model.predict(band_values)
-
-        # Ensure predictions are a 1D array
-        predictions = np.array(predictions).flatten()
-
-        # Decode the predicted labels using the encoder
-        decoded_results = encoder.inverse_transform(predictions)
-
-        return decoded_results
-
-    except Exception as e:
-        logger.error(f"Error in make_crop_prediction: {e}")
-        return "Error in prediction"
-    
-
-def calculate_evi(bands_mean):
-    """
-    Calculate the Enhanced Vegetation Index (EVI) from band means.
-
-    Args:
-        bands_mean: A dictionary containing mean values for all bands.
-
-    Returns:
-        The calculated EVI value.
-    """
-    try:
-        G = 2.5
-        C1 = 6.0
-        C2 = 7.5
-        L = 1.0
-
-        nir = bands_mean.get("B08", 0)  # Near-infrared band
-        red = bands_mean.get("B04", 0)  # Red band
-        blue = bands_mean.get("B02", 0)  # Blue band
-
-        # Avoid division by zero
-        denominator = (nir + C1 * red - C2 * blue + L)
-        if denominator == 0:
-            return 0
-
-        evi = G * (nir - red) / denominator
-        return evi
-
-    except Exception as e:
-        logger.error(f"Error calculating EVI: {e}")
-        return 0
-    
-
-def make_biomass_prediction(model, formatted_data):
-    """
-    Predict biomass using the given model and formatted data.
-
-    Args:
-        model: The trained machine learning model for biomass prediction.
-        formatted_data: A list of dictionaries, where each dictionary contains:
-            - "from": Start of the time interval
-            - "to": End of the time interval
-            - "bands_mean": A dictionary of mean values for all bands
-            - "ndvi_mean": The calculated NDVI mean value for the interval
-
-    Returns:
-        A list of predicted biomass values.
-    """
-    model.eval()  # Set the model to evaluation mode
-    try:
-        # Extract the band values and indices (NDVI, EVI) from the formatted data
-        band_values = []
-        for entry in formatted_data:
-            bands_mean = entry["bands_mean"]
-            ndvi_mean = entry.get("ndvi_mean", 0)  # NDVI mean value
-            evi_mean = calculate_evi(bands_mean)  # Calculate EVI (see helper function below)
-
-            # Ensure the order of inputs matches the expected input format
-            band_values.append([
-                ndvi_mean,  # NDVI
-                evi_mean,   # EVI
-                bands_mean.get("B01", 0),
-                bands_mean.get("B02", 0),
-                bands_mean.get("B03", 0),
-                bands_mean.get("B04", 0),
-                bands_mean.get("B05", 0),
-                bands_mean.get("B06", 0),
-                bands_mean.get("B07", 0),
-                bands_mean.get("B08", 0),
-                bands_mean.get("B8A", 0),
-                bands_mean.get("B11", 0),
-                bands_mean.get("B12", 0)
-            ])
-
-        # Convert to a NumPy array for model input
-        band_values = np.array(band_values)
-        band_values_tensor = torch.tensor(band_values, dtype=torch.float32)
-
-        # Make predictions using the model
-        with torch.no_grad():
-            predictions = model(band_values_tensor)
-        predictions = predictions.numpy()
-
-        return predictions
-
-    except Exception as e:
-        logger.error(f"Error in make_biomass_prediction: {e}")
-        return "Error in prediction"
-    
-
-def draw_wrapped_text(p, text, x, y, max_width, line_height=15):
-    """
-    Draw text with automatic line wrapping.
-
-    Args:
-        p: The canvas object.
-        text: The text to draw.
-        x: The x-coordinate for the text.
-        y: The starting y-coordinate for the text.
-        max_width: The maximum width of a line before wrapping.
-        line_height: The height between lines.
-    """
-    from reportlab.pdfbase.pdfmetrics import stringWidth
-
-    words = text.split(' ')
-    line = ''
-    for word in words:
-        # Check if adding the next word exceeds the max width
-        if stringWidth(line + word, p._fontname, p._fontsize) <= max_width:
-            line += word + ' '
-        else:
-            # Draw the current line and start a new one
-            p.drawString(x, y, line.strip())
-            y -= line_height
-            line = word + ' '
-    # Draw the last line
-    if line:
-        p.drawString(x, y, line.strip())
-    return y  # Return the final y-coordinate
-
 
 @csrf_exempt
 def generate_report(request):
@@ -545,50 +399,13 @@ def generate_report(request):
         # get predicted crop and biomass
         crop_model = joblib.load(CROP_MODEL_PATH)
         encoder = joblib.load(CROP_ENCODER_PATH)
-        predicted_crop = make_crop_prediction(crop_model, encoder, formatted_data)
+        predicted_crop = make_crop_prediction(crop_model, encoder, formatted_data, logger)
 
         biomass_model = torch.load(BIOMASS_MODEL_PATH, weights_only=False)
-        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data)
+        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
 
         # Generate PDF report
-        buffer = BytesIO()
-        p = canvas.Canvas(buffer)
-
-        # Title and metadata
-        p.drawString(100, 800, "NDVI Report")
-        p.drawString(100, 780, f"Start Date: {start_date}")
-        p.drawString(100, 760, f"End Date: {end_date}")
-
-        # Add predicted crop and biomass with wrapping
-        y_position = 740
-        y_position = draw_wrapped_text(p, f"Predicted Crop: {predicted_crop}", 100, y_position, max_width=400)
-        y_position = draw_wrapped_text(p, f"Predicted Biomass: {predicted_biomass}", 100, y_position - 20, max_width=400)
-
-        # Add NDVI mean and bands mean
-        y_position -= 20
-        for entry in formatted_data:
-            y_position = draw_wrapped_text(p, f"Time Interval: {entry['from']} → {entry['to']}", 100, y_position, max_width=400)
-            y_position -= 20
-            y_position = draw_wrapped_text(p, f"NDVI Mean: {entry['ndvi_mean']:.4f}", 100, y_position, max_width=400)
-            y_position -= 20
-            p.drawString(100, y_position, "Bands Mean (x10000):")
-            y_position -= 20
-
-            for band, mean in entry["bands_mean"].items():
-                y_position = draw_wrapped_text(p, f"{band}: {mean:.2f}", 120, y_position, max_width=400)
-                y_position -= 20
-
-            y_position -= 10
-            if y_position < 100:
-                p.showPage()
-                y_position = 800
-
-        # Save the PDF
-        p.showPage()
-        p.save()
-
-        # Return PDF as response
-        buffer.seek(0)
+        buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
         return HttpResponse(buffer, content_type='application/pdf')
 
     except Exception as e:
