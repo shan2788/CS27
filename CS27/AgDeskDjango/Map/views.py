@@ -4,17 +4,24 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
+from django.template.loader import render_to_string
 import json, requests, datetime, logging
 import joblib
 import os
 import torch
 import hashlib
+import matplotlib.pyplot as plt
+
+#测试用
+from io import BytesIO
+import base64
 
 from .models import NDVIRegion
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
 from  FarmAcc.models import FarmInfo
 from .predictions import make_crop_prediction, make_biomass_prediction
 from .utils import generate_pdf_report, are_geometries_similar
+from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -411,3 +418,45 @@ def generate_report(request):
     except Exception as e:
         logger.error(f"Error generating report: {e}")
         return JsonResponse({'error': str(e)}, status=500)
+    
+@csrf_exempt
+def tree_recommendation_view(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        geometry = data.get('geometry')
+        start_date = data.get('start_date', "2025-02-23")
+        end_date = data.get('end_date', "2025-03-23")
+
+        formatted_data = get_statistics_for_model_input(request)  #model——ndvi
+
+        # 预测结果（还没有）
+        #species = make_tree_recommendation(formatted_data)
+        #density = make_density_prediction(formatted_data)
+        #carbon = 2.3 
+
+        species = make_tree_recommendation(formatted_data)
+        density = make_density_prediction(formatted_data)
+        carbon_list = fake_carbon_series(density)
+        years = ["2025", "2026", "2027", "2028", "2029"]
+
+        plt.figure()
+        plt.plot(years, carbon_list, marker='o')
+        plt.title("predicted change")
+        plt.xlabel("years")
+        plt.ylabel("carbon emission(ton/year)")
+        plt.tight_layout()
+
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)
+        image_png = buffer.getvalue()
+        buffer.close()
+        chart_base64 = base64.b64encode(image_png).decode("utf-8")
+
+        html = render_to_string("Map/tree_result_fragment.html", {
+            "species": species,
+            "density": density,
+            "carbon": chart_base64,
+        })
+
+        return HttpResponse(html)

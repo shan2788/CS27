@@ -33,6 +33,7 @@
         <button id="start-draw" class="btn btn-primary">Start Drawing</button>
         <button id="end-draw" class="btn btn-secondary">Cancel Drawing</button>
         <button class="btn btn-success" onclick="submitPolygon()">Get NDVI</button>
+        <button class="btn btn-success" hx-post="{% url 'tree-recommendation' %}" hx-vals='js:{"geometry": selectedGeometry}' hx-target="#tree-recommendation-result" hx-target="#tree-recommendation-result" hx-swap="innerHTML"
         <button id="save-ndvi-btn" class="btn btn-success">💾 Save NDVI Region</button>
         <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button>
     </div>
@@ -44,6 +45,14 @@
           <option value="custom">Custom</option>
       </select>
 
+    </div>
+
+    <!--tree recommendation-->
+    <div class="card mt-3">
+      <div class="card-header">Recommendation Result</div>
+      <div class="card-body" id="tree-recommendation-result">
+        <p>Please select an area to get recommendation</p>
+      </div>
     </div>
 
 
