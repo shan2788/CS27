@@ -19,7 +19,7 @@ import base64
 from .models import NDVIRegion
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
 from  FarmAcc.models import FarmInfo
-from .predictions import make_crop_prediction, make_biomass_prediction
+from .predictions import make_crop_prediction, make_biomass_prediction, convert_tree_biomass_array_to_CO2
 from .utils import generate_pdf_report, are_geometries_similar
 from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
 
@@ -408,9 +408,10 @@ def generate_report(request):
 
         biomass_model = torch.load(BIOMASS_MODEL_PATH, weights_only=False)
         predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
+        predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
 
         # Generate PDF report
-        buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
+        buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, formatted_data)
         return HttpResponse(buffer, content_type='application/pdf')
 
     except Exception as e:

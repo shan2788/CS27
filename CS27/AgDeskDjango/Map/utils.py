@@ -60,7 +60,7 @@ def draw_wrapped_text(p, text, x, y, max_width, line_height=15):
     return y  # Return the final y-coordinate
 
 
-def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data):
+def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, formatted_data):
     buffer = BytesIO()
     p = canvas.Canvas(buffer)
 
@@ -73,6 +73,7 @@ def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass,
     y_position = 740
     y_position = draw_wrapped_text(p, f"Predicted Crop: {predicted_crop}", 100, y_position, max_width=400)
     y_position = draw_wrapped_text(p, f"Predicted Biomass: {predicted_biomass}", 100, y_position - 20, max_width=400)
+    y_position = draw_wrapped_text(p, f"Predicted CO2: {predicted_CO2}", 100, y_position - 20, max_width=400)
 
     # Add NDVI mean and bands mean
     y_position -= 20

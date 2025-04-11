@@ -145,4 +145,37 @@ def make_biomass_prediction(model, formatted_data, logger):
 
     except Exception as e:
         logger.error(f"Error in make_biomass_prediction: {e}")
+        
         return "Error in prediction"
+
+def convert_tree_biomass_array_to_CO2(tree_biomass_array, carbon_content_percentage=50):
+    """
+    Convert an array of tree biomass values to equivalent CO2 emissions.
+    :param tree_biomass_array: Array of tree biomass values (in kilograms)
+    :param carbon_content_percentage: Percentage of biomass that is carbon (default: 50%)
+    :return: Array of CO2 emissions (in kilograms)
+    """
+    # Constants
+    molar_mass_C = 12.01  # g/mol (Carbon)
+    molar_mass_CO2 = 44.01  # g/mol (Carbon Dioxide)
+
+    # Convert tree biomass array to grams
+    tree_biomass_array_grams = np.array(tree_biomass_array) * 1000  # kilograms to grams
+
+    # Calculate carbon mass in the tree biomass array
+    carbon_mass_array = tree_biomass_array_grams * (carbon_content_percentage / 100)
+
+    # Convert carbon mass to CO2 mass (in grams)
+    CO2_mass_array_grams = carbon_mass_array * (molar_mass_CO2 / molar_mass_C)
+
+    # Convert CO2 mass back to kilograms
+    CO2_mass_array_kg = CO2_mass_array_grams / 1000  # grams to kilograms
+    
+    return CO2_mass_array_kg
+
+# Example usage
+# tree_biomass_array = [100, 200, 300, 400]  # Example array of tree biomass in kilograms
+# carbon_content = 50  # Carbon content percentage (default for trees)
+
+# CO2_emissions_array = convert_tree_biomass_array_to_CO2(tree_biomass_array, carbon_content)
+# print(f"CO2 emissions for each tree biomass: {CO2_emissions_array}")
