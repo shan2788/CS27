@@ -234,17 +234,6 @@ def save_ndvi_result(request):
         return JsonResponse({'error': str(e)}, status=400)
     
 
-@login_required
-def region_history(request, farm_id):
-    """
-    Show the history of NDVI regions for a farm of current user
-    """
-    # get the farm object
-    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
-    # get all regions for the farm
-    regions = NDVIRegion.objects.filter(farm=farm).order_by('-created_at')
-    return render(request, 'Map/region_history.html', {'farm': farm, 'regions': regions})
-
 def get_statistics_data(request):
     token = get_sentinel_token()
     data = json.loads(request.body)
@@ -458,3 +447,19 @@ def tree_recommendation_view(request):
         })
 
         return HttpResponse(html)
+    
+
+@login_required
+def region_history(request, farm_id):
+    """
+    Show the history of NDVI regions for a farm of current user
+    """
+    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
+    regions = NDVIRegion.objects.filter(farm=farm).order_by('-created_at')
+
+    # Check if the request is an AJAX request
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'Map/region_history_fragment.html', {'farm': farm, 'regions': regions})
+
+    # Fallback for non-AJAX requests
+    return render(request, 'Map/region_history.html', {'farm': farm, 'regions': regions})

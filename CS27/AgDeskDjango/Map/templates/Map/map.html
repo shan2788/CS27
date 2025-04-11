@@ -36,6 +36,7 @@
         <button class="btn btn-success" hx-post="{% url 'tree-recommendation' %}" hx-vals='js:{"geometry": selectedGeometry}' hx-target="#tree-recommendation-result" hx-target="#tree-recommendation-result" hx-swap="innerHTML">tree_recommendation></button>
         <button id="save-ndvi-btn" class="btn btn-success">💾 Save NDVI Region</button>
         <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button>
+        <button id="view-history-btn" class="btn btn-info">📜 View History</button>
     </div>
     <div class="mb-3">
       <label for="draw-shape">Select Shape:</label>
@@ -63,6 +64,12 @@
             <img id="ndvi-image" style="max-width: 100%; border: 1px solid #ccc;" />
         </div>
     </div>
+
+    <!-- History Section -->
+    <div id="history-section" class="mt-4" style="display: none;">
+      <h5>History</h5>
+      <div id="history-content"></div>
+  </div>
 </div>
 
 <!-- Leaflet JS & CSS -->
@@ -117,14 +124,6 @@
     }
   });
 
-  // document.getElementById("start-draw").addEventListener("click", function() {
-  //   drawHandler.enable();
-  // });
-
-  // document.getElementById("end-draw").addEventListener("click", function() {
-  //   drawHandler.disable();
-  // });
-
   map.on(L.Draw.Event.CREATED, function (event) {
     if (drawnPolygon) map.removeLayer(drawnPolygon);
     drawnPolygon = event.layer;
@@ -164,6 +163,7 @@
       console.error(err);
     });
   }
+
   document.getElementById("save-ndvi-btn").addEventListener("click", function () {
     if (!drawnPolygon) {
         alert("Please draw a region first.");
@@ -252,72 +252,99 @@
 // let drawnPolygon = null;
 
 
-const customDrawer = new L.Draw.Polygon(map, {
-  allowIntersection: false,
-  showArea: true,
-  drawError: {
-    color: '#e1e100',
-    message: '<strong>Error:</strong> shape invalid!'
-  },
-  shapeOptions: {
-    color: '#97009c',
-    weight: 2,
-    fillOpacity: 0.1
-  }
-});
-
-const polygonDrawer = new L.Draw.Polygon(map, {
-  allowIntersection: false,
-  showArea: true,
-  shapeOptions: { color: '#97009c', fillOpacity: 0.1 }
-});
-
-const rectangleDrawer = new L.Draw.Rectangle(map, {
-  shapeOptions: { color: '#ff7800', fillOpacity: 0.1 }
-});
-
-const circleDrawer = new L.Draw.Circle(map, {
-  shapeOptions: { color: '#007bff', fillOpacity: 0.1 }
-});
-
-function disableAllDrawers() {
-  polygonDrawer.disable();
-  rectangleDrawer.disable();
-  customDrawer.disable();
-}
-
-
-document.getElementById("start-draw").addEventListener("click", function () {
-  const shape = document.getElementById("draw-shape").value;
-  disableAllDrawers();
-
-  if (shape === "polygon") polygonDrawer.enable();
-  else if (shape === "rectangle") rectangleDrawer.enable();
-  else if (shape === "custom") customDrawer.enable();
-});
-
-document.getElementById("end-draw").addEventListener("click", function () {
-  disableAllDrawers();
-});
-
-map.on(L.Draw.Event.CREATED, function (event) {
-  if (drawnPolygon) {
-    map.removeLayer(drawnPolygon);
-  }
-
-  drawnPolygon = event.layer;
-
-  drawnPolygon.setStyle({
-    fillColor: "#ffffff",
-    fillOpacity: 0.1,
-    color: "#ff0000",
-    weight: 2
+  const customDrawer = new L.Draw.Polygon(map, {
+    allowIntersection: false,
+    showArea: true,
+    drawError: {
+      color: '#e1e100',
+      message: '<strong>Error:</strong> shape invalid!'
+    },
+    shapeOptions: {
+      color: '#97009c',
+      weight: 2,
+      fillOpacity: 0.1
+    }
   });
 
-  drawnPolygon.addTo(map);
-});
+  const polygonDrawer = new L.Draw.Polygon(map, {
+    allowIntersection: false,
+    showArea: true,
+    shapeOptions: { color: '#97009c', fillOpacity: 0.1 }
+  });
+
+  const rectangleDrawer = new L.Draw.Rectangle(map, {
+    shapeOptions: { color: '#ff7800', fillOpacity: 0.1 }
+  });
+
+  const circleDrawer = new L.Draw.Circle(map, {
+    shapeOptions: { color: '#007bff', fillOpacity: 0.1 }
+  });
+
+  function disableAllDrawers() {
+    polygonDrawer.disable();
+    rectangleDrawer.disable();
+    customDrawer.disable();
+  }
 
 
+  document.getElementById("start-draw").addEventListener("click", function () {
+    const shape = document.getElementById("draw-shape").value;
+    disableAllDrawers();
+
+    if (shape === "polygon") polygonDrawer.enable();
+    else if (shape === "rectangle") rectangleDrawer.enable();
+    else if (shape === "custom") customDrawer.enable();
+  });
+
+  document.getElementById("end-draw").addEventListener("click", function () {
+    disableAllDrawers();
+  });
+
+  map.on(L.Draw.Event.CREATED, function (event) {
+    if (drawnPolygon) {
+      map.removeLayer(drawnPolygon);
+    }
+
+    drawnPolygon = event.layer;
+
+    drawnPolygon.setStyle({
+      fillColor: "#ffffff",
+      fillOpacity: 0.1,
+      color: "#ff0000",
+      weight: 2
+    });
+
+    drawnPolygon.addTo(map);
+  });
+
+  document.getElementById("view-history-btn").addEventListener("click", function () {
+    const historySection = document.getElementById("history-section");
+    const historyContent = document.getElementById("history-content");
+
+    // Replace with the actual farm ID
+    const farmId = "{{ request.user.currentFarm.id }}";
+
+    // Toggle visibility
+    if (historySection.style.display === "none") {
+        historySection.style.display = "block";
+
+        // Fetch history content
+        fetch(`/map/api/region-history/${farmId}/`)
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to load history.");
+                return res.text();
+            })
+            .then(html => {
+                historyContent.innerHTML = html;
+            })
+            .catch(err => {
+                console.error(err);
+                historyContent.innerHTML = "<p>Error loading history.</p>";
+            });
+    } else {
+        historySection.style.display = "none";
+    }
+  });
 
 
 </script>

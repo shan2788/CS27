@@ -7,7 +7,7 @@ urlpatterns = [
     path('', views.map_view, name='map'),
     path('api/ndvi/', views.ndvi_view, name='ndvi_view'),
     path('api/save-ndvi/', views.save_ndvi_result, name='save_ndvi_result'),
-    path('history/<int:farm_id>/', views.region_history, name='region_history'),
+    path('api/region-history/<int:farm_id>/', views.region_history, name='region_history'),
     path('api/generate-report/', views.generate_report, name='generate_report'),
     path('recommend-tree/', views.tree_recommendation_view, name='tree-recommendation'),
 ]

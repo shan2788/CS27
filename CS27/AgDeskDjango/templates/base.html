@@ -175,20 +175,6 @@
                         </a>
                     </li>
                     <li class="sidebar-item">
-                        <a href="#" class="sidebar-link" data-bs-toggle="collapse" data-bs-target="#historyDropdown">
-                            <img src="/static/Images/history.png" alt="History" class="sidebar-icon">
-                            <span>History</span>
-                            <i class="fas fa-chevron-down float-end"></i>
-                        </a>
-                        <ul id="historyDropdown" class="collapse list-unstyled">
-                            {% for farm in request.user.farm.all %}
-                            <li><a href="{% url 'region_history' farm.id %}">{{ farm.farm_name }}</a></li>
-                            {% empty %}
-                            <li>No farms available</li>
-                            {% endfor %}
-                        </ul>
-                    </li>
-                    <li class="sidebar-item">
                         <a href="{% url 'farmSettings' %}" class="sidebar-link">
                             <img src="/static/Images/settingsCog.png" alt="Settings" class="sidebar-icon">
                             <span>Settings</span>
