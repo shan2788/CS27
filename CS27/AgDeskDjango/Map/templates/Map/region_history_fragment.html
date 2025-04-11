@@ -1,0 +1,28 @@
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Created At</th>
+            <th>Image</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for region in regions %}
+        <tr>
+            <td>{{ region.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+                {% if region.image %}
+                <a href="{{ region.image.url }}" target="_blank">
+                    <img src="{{ region.image.url }}" alt="Region Image" style="max-width: 100px; max-height: 100px;">
+                </a>
+                {% else %}
+                No Image
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="2">No regions found for this farm.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 
-from .models import NDVIRegion
+from .models import NDVIRegion, NDVIReport
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
 from  FarmAcc.models import FarmInfo
 from .predictions import make_crop_prediction, make_biomass_prediction, convert_tree_biomass_array_to_CO2
@@ -35,6 +35,9 @@ CROP_ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder.pkl")
 BIOMASS_MODEL_PATH = os.path.join(BASE_DIR, "biomass_model.pkl")
 CACHE_DIR = os.path.join(BASE_DIR, "cache")
 CACHE_INDEX_PATH = os.path.join(CACHE_DIR, "cache_index.json")
+
+# Set up paths for report generation
+REPORT_PATH = os.path.join(BASE_DIR, "report")
 
 @login_required(login_url="login")
 def map_view(request):
@@ -234,17 +237,6 @@ def save_ndvi_result(request):
         return JsonResponse({'error': str(e)}, status=400)
     
 
-@login_required
-def region_history(request, farm_id):
-    """
-    Show the history of NDVI regions for a farm of current user
-    """
-    # get the farm object
-    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
-    # get all regions for the farm
-    regions = NDVIRegion.objects.filter(farm=farm).order_by('-created_at')
-    return render(request, 'Map/region_history.html', {'farm': farm, 'regions': regions})
-
 def get_statistics_data(request):
     token = get_sentinel_token()
     data = json.loads(request.body)
@@ -385,10 +377,12 @@ def get_statistics_for_model_input(request):
         return []
 
 
+
+
 @csrf_exempt
 def generate_report(request):
     """
-    Generate a report for the selected NDVI region
+    Generate a report for the selected NDVI region and save it.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
@@ -397,11 +391,17 @@ def generate_report(request):
         data = json.loads(request.body)
         start_date = data.get('start_date', "2025-02-23")
         end_date = data.get('end_date', "2025-03-23")
+        geometry_data = data.get("geometry")
 
-        # Fetch NDVI statistics
+        if not geometry_data:
+            return JsonResponse({'error': 'Missing geometry data'}, status=400)
+
+        # Convert geometry to GEOS object
+        geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
+
+        # Get statistics and run predictions
         formatted_data = get_statistics_for_model_input(request)
 
-        # get predicted crop and biomass
         crop_model = joblib.load(CROP_MODEL_PATH)
         encoder = joblib.load(CROP_ENCODER_PATH)
         predicted_crop = make_crop_prediction(crop_model, encoder, formatted_data, logger)
@@ -412,11 +412,39 @@ def generate_report(request):
 
         # Generate PDF report
         buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, formatted_data)
+
+        # Save PDF to filesystem
+        filename = f"NDVI_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        save_dir = REPORT_PATH
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
+        file_path = os.path.join(save_dir, filename)
+
+        with open(file_path, 'wb') as f:
+            f.write(buffer.getvalue())
+
+        # Get current user's farm
+        current_user = request.user
+        farm_id = getattr(current_user, "currentFarm_id", None)
+        farm = FarmInfo.objects.get(id=farm_id) if farm_id else None
+
+        # Save record to database
+        NDVIReport.objects.create(
+            farm=farm,
+            start_date=start_date,
+            end_date=end_date,
+            file_path=f'reports/{filename}',
+            geolocation=geo_obj
+        )
+
+        # Return the PDF response
+        buffer.seek(0)
         return HttpResponse(buffer, content_type='application/pdf')
 
     except Exception as e:
         logger.error(f"Error generating report: {e}")
         return JsonResponse({'error': str(e)}, status=500)
+
     
 @csrf_exempt
 def tree_recommendation_view(request):
@@ -459,3 +487,35 @@ def tree_recommendation_view(request):
         })
 
         return HttpResponse(html)
+    
+
+@login_required
+def region_history(request, farm_id):
+    """
+    Show the history of NDVI regions for a farm of current user
+    """
+    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
+    regions = NDVIRegion.objects.filter(farm=farm).order_by('-created_at')
+
+    # Check if the request is an AJAX request
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'Map/region_history_fragment.html', {'farm': farm, 'regions': regions})
+
+    # Fallback for non-AJAX requests
+    return render(request, 'Map/region_history.html', {'farm': farm, 'regions': regions})
+
+
+@login_required
+def report_history(request, farm_id):
+    """
+    Show the history of NDVI reports for a farm of the current user.
+    """
+    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
+    reports = NDVIReport.objects.filter(farm=farm).order_by('-created_at')
+
+    # Check if the request is an AJAX request
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'Map/report_history_fragment.html', {'farm': farm, 'reports': reports})
+
+    # Fallback for non-AJAX requests
+    return render(request, 'Map/report_history.html', {'farm': farm, 'reports': reports})

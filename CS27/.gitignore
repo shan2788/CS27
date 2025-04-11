@@ -60,3 +60,9 @@ AgDeskDjango/Map/cache/*
 
 # Allow the cache folder itself
 !AgDeskDjango/Map/cache/
+
+# Ignore everything in the report folder
+AgDeskDjango/Map/report/*
+
+# Allow the report folder itself
+!AgDeskDjango/Map/report/
