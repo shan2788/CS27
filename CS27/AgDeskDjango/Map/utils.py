@@ -4,6 +4,8 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from shapely.geometry import shape
 from shapely.ops import unary_union
+import geopandas as gpd
+from shapely.geometry import Polygon
 
 def are_geometries_similar(geometry1, geometry2, threshold=0.8):
     """
@@ -60,7 +62,7 @@ def draw_wrapped_text(p, text, x, y, max_width, line_height=15):
     return y  # Return the final y-coordinate
 
 
-def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, formatted_data):
+def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, estimated_area_square, formatted_data):
     buffer = BytesIO()
     p = canvas.Canvas(buffer)
 
@@ -74,6 +76,14 @@ def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass,
     y_position = draw_wrapped_text(p, f"Predicted Crop: {predicted_crop}", 100, y_position, max_width=400)
     y_position = draw_wrapped_text(p, f"Predicted Biomass: {predicted_biomass}", 100, y_position - 20, max_width=400)
     y_position = draw_wrapped_text(p, f"Predicted CO2: {predicted_CO2}", 100, y_position - 20, max_width=400)
+    y_position = draw_wrapped_text(p, f"Predicted CO2: {estimated_area_square}", 100, y_position - 20, max_width=400)
+    
+    if estimated_area_square/10000 < 0.2: 
+        y_position = draw_wrapped_text(p, f"The selected area is too small to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
+        y_position -= 20
+    else:   
+        y_position = draw_wrapped_text(p, f"If the farm is cleared of forest for 5 years and located in FullCAM area, the {estimated_area_square:.2f} km² are is eligible for to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
+        y_position -= 20
 
     # Add NDVI mean and bands mean
     y_position -= 20
@@ -101,3 +111,23 @@ def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass,
     # Return PDF as response
     buffer.seek(0)
     return buffer
+
+def calculate_area_square(region_coordinates):
+    """
+    Calculate the area in square kilometers of a selected region.
+    :param region_coordinates: List of tuples [(lat, lon), ...] representing the region
+    :return: Area in square kilometers
+    """
+    # Create a polygon from region coordinates
+    region_polygon = Polygon(region_coordinates)
+
+    # Convert the polygon to a GeoDataFrame for area calculation
+    region_gdf = gpd.GeoDataFrame([1], geometry=[region_polygon], crs="EPSG:4326")
+
+    # Transform the GeoDataFrame to a projected CRS (meters) for accurate area calculation
+    region_gdf_projected = region_gdf.to_crs("EPSG:3857")
+
+    # Calculate the area in square meters and convert to square kilometers
+    area_square_km = region_gdf_projected.geometry[0].area / 1_000_000
+
+    return area_square_km
