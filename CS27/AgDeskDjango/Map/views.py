@@ -36,6 +36,9 @@ BIOMASS_MODEL_PATH = os.path.join(BASE_DIR, "biomass_model.pkl")
 CACHE_DIR = os.path.join(BASE_DIR, "cache")
 CACHE_INDEX_PATH = os.path.join(CACHE_DIR, "cache_index.json")
 
+# Set up paths for report generation
+REPORT_PATH = os.path.join(BASE_DIR, "report")
+
 @login_required(login_url="login")
 def map_view(request):
     sentinel_instance_id = get_sentinel_instance_id()
@@ -411,8 +414,9 @@ def generate_report(request):
 
         # Save PDF to filesystem
         filename = f"NDVI_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        save_dir = r"C:\Users\Eric\Documents\GitHub\CS27\CS27\AgDeskDjango\Map\report"
-        os.makedirs(save_dir, exist_ok=True)
+        save_dir = REPORT_PATH
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
         file_path = os.path.join(save_dir, filename)
 
         with open(file_path, 'wb') as f:
