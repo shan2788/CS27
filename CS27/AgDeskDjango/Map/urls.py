@@ -1,4 +1,6 @@
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from . import views
 
 
@@ -11,5 +13,5 @@ urlpatterns = [
     path('recommend-tree/', views.tree_recommendation_view, name='tree-recommendation'),
     path('api/region-history/<int:farm_id>/', views.region_history, name='region_history'),
     path('api/report-history/<int:farm_id>/', views.report_history, name='report_history'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

@@ -11,7 +11,7 @@
             <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
             <td>
                 {% if report.file_path %}
-                <a href="{{ report.file_path }}" target="_blank">Download Report</a>
+                <a href="{{ MEDIA_URL }}{{ report.file_path }}" target="_blank">Download Report</a>
                 {% else %}
                 No Report Available
                 {% endif %}

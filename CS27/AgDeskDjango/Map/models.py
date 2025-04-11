@@ -17,7 +17,7 @@ class NDVIReport(models.Model):
     farm = models.ForeignKey(FarmInfo, on_delete=models.CASCADE, null=True, blank=True)
     start_date = models.DateField()
     end_date = models.DateField()
-    file_path = models.FileField(upload_to='reports/')
+    file_path = models.FileField(upload_to='report/')
     geolocation = models.PolygonField(srid=4326)
     created_at = models.DateTimeField(auto_now_add=True)
 
