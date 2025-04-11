@@ -502,3 +502,19 @@ def region_history(request, farm_id):
 
     # Fallback for non-AJAX requests
     return render(request, 'Map/region_history.html', {'farm': farm, 'regions': regions})
+
+
+@login_required
+def report_history(request, farm_id):
+    """
+    Show the history of NDVI reports for a farm of the current user.
+    """
+    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
+    reports = NDVIReport.objects.filter(farm=farm).order_by('-created_at')
+
+    # Check if the request is an AJAX request
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'Map/report_history_fragment.html', {'farm': farm, 'reports': reports})
+
+    # Fallback for non-AJAX requests
+    return render(request, 'Map/report_history.html', {'farm': farm, 'reports': reports})

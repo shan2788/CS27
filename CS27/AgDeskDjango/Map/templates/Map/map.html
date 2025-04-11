@@ -36,7 +36,8 @@
         <button class="btn btn-success" hx-post="{% url 'tree-recommendation' %}" hx-vals='js:{"geometry": selectedGeometry}' hx-target="#tree-recommendation-result" hx-target="#tree-recommendation-result" hx-swap="innerHTML">Tree Recommendation</button>
         <button id="save-ndvi-btn" class="btn btn-success">💾 Save NDVI Region</button>
         <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button>
-        <button id="view-history-btn" class="btn btn-info">📜 View History</button>
+        <button id="view-history-btn" class="btn btn-info">📜 View Region History</button>
+        <button id="view-report-history-btn" class="btn btn-info">📜 View Report History</button>
     </div>
     <div class="mb-3">
       <label for="draw-shape">Select Shape:</label>
@@ -67,9 +68,14 @@
 
     <!-- History Section -->
     <div id="history-section" class="mt-4" style="display: none;">
-      <h5>History</h5>
+      <h5>Region History</h5>
       <div id="history-content"></div>
-  </div>
+    </div>
+
+    <div id="report-history-section" class="mt-4" style="display: none;">
+      <h5>Report History</h5>
+      <div id="report-history-content"></div>
+    </div>
 </div>
 
 <!-- Leaflet JS & CSS -->
@@ -343,6 +349,35 @@
             });
     } else {
         historySection.style.display = "none";
+    }
+  });
+
+  document.getElementById("view-report-history-btn").addEventListener("click", function () {
+    const reportHistorySection = document.getElementById("report-history-section");
+    const reportHistoryContent = document.getElementById("report-history-content");
+
+    // Replace with the actual farm ID
+    const farmId = "{{ request.user.currentFarm.id }}";
+
+    // Toggle visibility
+    if (reportHistorySection.style.display === "none") {
+        reportHistorySection.style.display = "block";
+
+        // Fetch report history content
+        fetch(`/map/api/report-history/${farmId}/`)
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to load report history.");
+                return res.text();
+            })
+            .then(html => {
+                reportHistoryContent.innerHTML = html;
+            })
+            .catch(err => {
+                console.error(err);
+                reportHistoryContent.innerHTML = "<p>Error loading report history.</p>";
+            });
+    } else {
+        reportHistorySection.style.display = "none";
     }
   });
 
