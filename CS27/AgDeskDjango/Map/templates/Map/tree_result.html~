@@ -3,7 +3,7 @@
 {% block webpageContent %}
 
 <div>
-    <p><strong>Crop:</strong> {{ species }}</p>
+    <p><strong>Crop：</strong> {{ species }}</p>
     <p><strong>Recommended planting density:</strong> {{ density }} Plants/Hectare</p>
     <p><strong>Estimated carbon emissions:</strong> {{ carbon }} Tons/Year</p>
     <img src="data:image/png;base64,{{ chart }}" alt="Carbon Emission Predict" class="img-fluid">

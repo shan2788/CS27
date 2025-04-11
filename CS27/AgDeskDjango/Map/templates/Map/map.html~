@@ -3,7 +3,7 @@
 {% load static %}
 
 <!-- Page Content -->
-<div class="container" style="max-width: 100%;">
+<div class="container" style="max-width: 100%;" xmlns="http://www.w3.org/1999/html">
     <!-- Header -->
     <div class="row align-items-center mb-4">
         <div class="col-md-6">
@@ -33,6 +33,7 @@
         <button id="start-draw" class="btn btn-primary">Start Drawing</button>
         <button id="end-draw" class="btn btn-secondary">Cancel Drawing</button>
         <button class="btn btn-success" onclick="submitPolygon()">Get NDVI</button>
+        <button class="btn btn-success" hx-post="{% url 'tree-recommendation' %}" hx-vals='js:{"geometry": selectedGeometry}' hx-target="#tree-recommendation-result" hx-target="#tree-recommendation-result" hx-swap="innerHTML">tree_recommendation</button>
         <button id="save-ndvi-btn" class="btn btn-success">💾 Save NDVI Region</button>
         <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button>
     </div>
@@ -44,6 +45,14 @@
           <option value="custom">Custom</option>
       </select>
 
+    </div>
+
+    <!--tree recommendation-->
+    <div class="card mt-3">
+      <div class="card-header">Recommendation Result</div>
+      <div class="card-body" id="tree-recommendation-result">
+        <p>Please select an area to get recommendation</p>
+      </div>
     </div>
 
 
@@ -72,12 +81,15 @@
   }).addTo(map);
 
   let sentinelLayer = L.tileLayer.wms('https://services.sentinel-hub.com/ogc/wms/{{ sentinel_instance_id }}', {
-    layers: 'VEGETATION_INDEX',  // Use 'FALSE_COLOR', 'NDVI' etc. for other options
+    layers: 'VEGETATION_INDEX',
     format: 'image/png',
     transparent: true,
     SHOWLOGO: false,
     attribution: '&copy; Sentinel Hub',
-  });
+    updateWhenIdle: true,  // ✅ 仅在拖动后更新图层
+    reuseTiles: true       // ✅ 重复使用缓存的 tile
+});
+
 
   // Layer Control
   const baseMaps = {
