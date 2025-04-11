@@ -18,7 +18,7 @@ class NDVIReport(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     file_path = models.FileField(upload_to='reports/')
-    geolocation = models.PolygonField(srid=4326)
+    geolocation = geomodels.GeometryField()  # 支持 Polygon/Point/LineString
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
