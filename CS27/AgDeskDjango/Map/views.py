@@ -22,6 +22,7 @@ from  FarmAcc.models import FarmInfo
 from .predictions import make_crop_prediction, make_biomass_prediction
 from .utils import generate_pdf_report, are_geometries_similar
 from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
+from django.conf import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ CACHE_DIR = os.path.join(BASE_DIR, "cache")
 CACHE_INDEX_PATH = os.path.join(CACHE_DIR, "cache_index.json")
 
 # Set up paths for report generation
-REPORT_PATH = os.path.join(BASE_DIR, "report")
+REPORT_PATH = os.path.join(settings.MEDIA_ROOT, "report")
 
 @login_required(login_url="login")
 def map_view(request):
@@ -432,7 +433,7 @@ def generate_report(request):
             farm=farm,
             start_date=start_date,
             end_date=end_date,
-            file_path=f'reports/{filename}',
+            file_path=f'report/{filename}',
             geolocation=geo_obj
         )
 
