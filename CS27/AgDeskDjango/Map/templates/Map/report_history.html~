@@ -2,7 +2,7 @@
 
 {% block webpageContent %}
 <div class="container mt-4">
-    <a href="{% url 'map' %}" class="btn btn-secondary mt-3">← Back to Map</a>
+    <a href="{% url 'map' farm.id %}" class="btn btn-secondary mt-3">← Back to Map</a>
     <h2>Report History for {{ farm.farm_name }}</h2>
 
     <!-- Date Range Filter Form -->
