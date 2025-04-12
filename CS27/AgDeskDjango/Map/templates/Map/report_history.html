@@ -3,6 +3,70 @@
 {% block webpageContent %}
 <div class="container mt-4">
     <h2>Report History for {{ farm.farm_name }}</h2>
+
+    <!-- Date Range Filter Form -->
+    <form method="get" id="filter-form" class="mb-4">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" id="start_date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button id="filter-button" class="btn btn-primary">Filter</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Include the report history fragment -->
     {% include 'Map/report_history_fragment.html' %}
 </div>
+
+<script>
+    console.log("JavaScript loaded.");
+    // Add event listener to intercept form submission
+    document.getElementById("filter-button").addEventListener("click", function () {
+        console.log("Form submission intercepted.");
+
+        // Get startDate and endDate values
+        const startDate = document.getElementById("start_date").value;
+        const endDate = document.getElementById("end_date").value;
+        const farmId = "{{ request.user.currentFarm.id }}";
+
+        console.log(`Start Date: ${startDate}, End Date: ${endDate}`);
+
+        // Construct the URL for the AJAX request
+        const url = `/map/api/report-history/${farmId}/`;
+
+        console.log(`Fetching URL: ${url}`);
+
+        // Send the AJAX request
+        fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error("Failed to fetch filtered reports.");
+            return response.text();
+        })
+        .then(html => {
+            console.log("AJAX request successful.");
+            document.querySelector(".container").innerHTML = html;
+        })
+        .catch(error => {
+            console.error(error);
+            alert("Error loading filtered reports.");
+        });
+    });
+</script>
 {% endblock %}

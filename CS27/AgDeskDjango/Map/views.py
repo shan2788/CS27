@@ -5,6 +5,7 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
+from django.utils.dateparse import parse_date
 import json, requests, datetime, logging
 import joblib
 import os
@@ -509,11 +510,31 @@ def region_history(request, farm_id):
 @login_required
 def report_history(request, farm_id):
     """
-    Show the history of NDVI reports for a farm of the current user.
+    Show the history of NDVI reports for a farm of the current user, filtered by date range.
     """
     farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
     reports = NDVIReport.objects.filter(farm=farm).order_by('-created_at')
 
+    if request.method == 'POST':
+        # Get start_date and end_date from request parameters
+        try:
+            data = json.loads(request.body)
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            logger.debug(f"Start date: {start_date}, End date: {end_date}")
+
+            if start_date:
+                start_date = parse_date(start_date)
+                reports = reports.filter(start_date__gte=start_date)
+
+            if end_date:
+                end_date = parse_date(end_date)
+                reports = reports.filter(end_date__lte=end_date)
+
+        except Exception as e:
+            logger.error(f"Error parsing request body: {e}")
+            return JsonResponse({'error': 'Invalid request'}, status=400)
+        
     # Check if the request is an AJAX request
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return render(request, 'Map/report_history_fragment.html', {'farm': farm, 'reports': reports})
