@@ -21,7 +21,7 @@ from .models import NDVIRegion, NDVIReport
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
 from  FarmAcc.models import FarmInfo
 from .predictions import make_crop_prediction, make_biomass_prediction, convert_tree_biomass_array_to_CO2
-from .utils import generate_pdf_report, are_geometries_similar
+from .utils import generate_pdf_report, are_geometries_similar, calculate_area_square
 from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
 from django.conf import settings
 
@@ -411,6 +411,8 @@ def generate_report(request):
         biomass_model = torch.load(BIOMASS_MODEL_PATH, weights_only=False)
         predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
         predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
+        estimated_area_square = calculate_area_square(geometry_data)
+        
 
         # Generate PDF report
         buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, formatted_data)
