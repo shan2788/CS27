@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block webpageContent %}
+<div class="container mt-4">
+    <a href="{% url 'map' %}" class="btn btn-secondary mt-3">← Back to Map</a>
+    <h2>Carbon Credit History for {{ farm.farm_name }}</h2>
+
+    <!-- Date Range Filter Form -->
+
+        <div class="row">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" id="start_date" name="start_date" class="form-control" >
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" id="end_date" name="end_date" class="form-control" >
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button id="filter-button" class="btn btn-primary" type="button" onclick="filterReports()">Filter</button>
+            </div>
+        </div>
+
+
+    <!-- Include the report history fragment -->
+    {% include 'Map/carbon_credit_history_fragment.html' %}
+</div>
+
+{% endblock %}
+
+
+{% block script %}
+<script>
+function filterReports() {
+    const startDate = document.getElementById("start_date").value;
+    const endDate = document.getElementById("end_date").value;
+    const farmId = "{{ farm.id }}";
+
+    fetch(`/map/api/carbon-credit-history/${farmId}/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}",
+            "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({
+            start_date: startDate,
+            end_date: endDate
+        })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error("Failed to fetch filtered reports.");
+        return response.text();
+    })
+    .then(html => {
+        document.getElementById("carbon-credit-history-fragment").innerHTML = html;
+    })
+    .catch(error => {
+        console.error("Error loading filtered reports:", error);
+        alert("Something went wrong while filtering the reports.");
+    });
+}
+</script>
+{% endblock %}

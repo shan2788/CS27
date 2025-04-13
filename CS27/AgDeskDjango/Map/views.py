@@ -17,11 +17,11 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 
-from .models import NDVIRegion, NDVIReport
+from .models import NDVIRegion, NDVIReport, CarbonCredit
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
 from  FarmAcc.models import FarmInfo
 from .predictions import make_crop_prediction, make_biomass_prediction, convert_tree_biomass_array_to_CO2
-from .utils import generate_pdf_report, are_geometries_similar, calculate_area_square
+from .utils import generate_pdf_report, are_geometries_similar, generate_credit_report, calculate_area_square 
 from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
 from django.conf import settings
 
@@ -409,13 +409,10 @@ def generate_report(request):
         predicted_crop = make_crop_prediction(crop_model, encoder, formatted_data, logger)
 
         biomass_model = torch.load(BIOMASS_MODEL_PATH, weights_only=False)
-        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
-        predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
-        # estimated_area_square = float(calculate_area_square(geometry_data))
-        
+        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)   
 
         # Generate PDF report
-        buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, formatted_data)
+        buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
 
         # Save PDF to filesystem
         filename = f"NDVI_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
@@ -543,3 +540,104 @@ def report_history(request, farm_id):
 
     # Fallback for non-AJAX requests
     return render(request, 'Map/report_history.html', {'farm': farm, 'reports': reports})
+
+
+@csrf_exempt
+def carbon_credit(request):
+    """
+    Generate a carbon credit report for the selected region and save it.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        start_date = data.get('start_date', "2025-02-23")
+        end_date = data.get('end_date', "2025-03-23")
+        geometry_data = data.get("geometry")
+
+        if not geometry_data:
+            return JsonResponse({'error': 'Missing geometry data'}, status=400)
+
+        # Convert geometry to GEOS object
+        geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
+
+        # Get statistics and run predictions
+        formatted_data = get_statistics_for_model_input(request)
+
+        biomass_model = torch.load(BIOMASS_MODEL_PATH, weights_only=False)
+        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
+        predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
+        estimated_area_square = calculate_area_square(geometry_data['coordinates'][0])
+        
+
+        # Generate Credit report
+        buffer = generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
+
+        # Save PDF to filesystem
+        filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        save_dir = REPORT_PATH
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
+        file_path = os.path.join(save_dir, filename)
+
+        with open(file_path, 'wb') as f:
+            f.write(buffer.getvalue())
+
+        # Get current user's farm
+        current_user = request.user
+        farm_id = getattr(current_user, "currentFarm_id", None)
+        farm = FarmInfo.objects.get(id=farm_id) if farm_id else None
+
+        # Save record to database
+        CarbonCredit.objects.create(
+            farm=farm,
+            start_date=start_date,
+            end_date=end_date,
+            file_path=f'report/{filename}',
+            geolocation=geo_obj
+        )
+
+        # Return the PDF response
+        buffer.seek(0)
+        return HttpResponse(buffer, content_type='application/pdf')
+
+    except Exception as e:
+        logger.error(f"Error generating report: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+    
+
+@login_required
+def carbon_credit_history(request, farm_id):
+    """
+    Show the history of carbon credit reports for a farm of the current user, filtered by date range.
+    """
+    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
+    reports = CarbonCredit.objects.filter(farm=farm).order_by('-created_at')
+
+    if request.method == 'POST':
+        # Get start_date and end_date from request parameters
+        try:
+            data = json.loads(request.body)
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            logger.debug(f"Start date: {start_date}, End date: {end_date}")
+
+            if start_date:
+                start_date = parse_date(start_date)
+                reports = reports.filter(start_date__gte=start_date)
+
+            if end_date:
+                end_date = parse_date(end_date)
+                reports = reports.filter(end_date__lte=end_date)
+
+        except Exception as e:
+            logger.error(f"Error parsing request body: {e}")
+            return JsonResponse({'error': 'Invalid request'}, status=400)
+        
+    # Check if the request is an AJAX request
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'Map/carbon_credit_history_fragment.html', {'farm': farm, 'reports': reports})
+
+    # Fallback for non-AJAX requests
+    return render(request, 'Map/carbon_credit_history.html', {'farm': farm, 'reports': reports})

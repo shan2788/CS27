@@ -152,7 +152,7 @@ def convert_tree_biomass_array_to_CO2(tree_biomass_array, carbon_content_percent
     """
     Convert an array of tree biomass values to equivalent CO2 emissions.
     :param tree_biomass_array: Array of tree biomass values (in kilograms)
-    :param carbon_content_percentage: Percentage of biomass that is carbon (default: 50%)
+    :param carbon_content_percentage: Percentage of biomass that is carbon (default: 50% for trees)
     :return: Array of CO2 emissions (in kilograms)
     """
     # Constants
@@ -173,9 +173,3 @@ def convert_tree_biomass_array_to_CO2(tree_biomass_array, carbon_content_percent
     
     return CO2_mass_array_kg
 
-# Example usage
-# tree_biomass_array = [100, 200, 300, 400]  # Example array of tree biomass in kilograms
-# carbon_content = 50  # Carbon content percentage (default for trees)
-
-# CO2_emissions_array = convert_tree_biomass_array_to_CO2(tree_biomass_array, carbon_content)
-# print(f"CO2 emissions for each tree biomass: {CO2_emissions_array}")

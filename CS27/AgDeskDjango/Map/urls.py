@@ -13,5 +13,7 @@ urlpatterns = [
     path('recommend-tree/', views.tree_recommendation_view, name='tree-recommendation'),
     path('api/region-history/<int:farm_id>/', views.region_history, name='region_history'),
     path('api/report-history/<int:farm_id>/', views.report_history, name='report_history'),
+    path('api/carbon-credit/', views.carbon_credit, name='carbon_credit'),
+    path('api/carbon-credit-history/<int:farm_id>/', views.carbon_credit_history, name='carbon_credit_history'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

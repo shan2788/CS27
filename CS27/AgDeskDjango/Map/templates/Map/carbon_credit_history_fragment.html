@@ -1,0 +1,26 @@
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Created At</th>
+            <th>Report</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for report in reports %}
+        <tr>
+            <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+                {% if report.file_path %}
+                <a href="{{ MEDIA_URL }}{{ report.file_path }}" target="_blank">Download Report</a>
+                {% else %}
+                No Report Available
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="2">No reports found for this farm.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

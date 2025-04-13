@@ -145,3 +145,28 @@ To check if the tables are being filled:
 
 - [Python Documentation][PythonCode]
 - [Django Documentation][Django]
+
+# Useful tips for the relations "Relation does not exist error in Django":
+
+Deleted everything in my app's migrations folder, then using django extensions I wiped the postgresql database and cached files with:
+
+```shell
+py manage.py clear_cache
+py manage.py clean_pyc
+py manage.py reset_schema
+py manage.py reset_db
+```
+
+Then do the migration again
+
+```shell
+python delete_migrations.py
+```
+
+```shell
+python manage.py makemigrations
+```
+
+```shell
+python manage.py migrate
+```
