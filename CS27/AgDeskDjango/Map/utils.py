@@ -62,7 +62,7 @@ def draw_wrapped_text(p, text, x, y, max_width, line_height=15):
     return y  # Return the final y-coordinate
 
 
-def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, estimated_area_square, formatted_data):
+def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, formatted_data):
     buffer = BytesIO()
     p = canvas.Canvas(buffer)
 
@@ -76,14 +76,14 @@ def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass,
     y_position = draw_wrapped_text(p, f"Predicted Crop: {predicted_crop}", 100, y_position, max_width=400)
     y_position = draw_wrapped_text(p, f"Predicted Biomass: {predicted_biomass}", 100, y_position - 20, max_width=400)
     y_position = draw_wrapped_text(p, f"Predicted CO2: {predicted_CO2}", 100, y_position - 20, max_width=400)
-    y_position = draw_wrapped_text(p, f"Predicted CO2: {estimated_area_square}", 100, y_position - 20, max_width=400)
+    # y_position = draw_wrapped_text(p, f"Predicted CO2: {estimated_area_square}", 100, y_position - 20, max_width=400)
     
-    if estimated_area_square/10000 < 0.2: 
-        y_position = draw_wrapped_text(p, f"The selected area is too small to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
-        y_position -= 20
-    else:   
-        y_position = draw_wrapped_text(p, f"If the farm is cleared of forest for 5 years and located in FullCAM area, the {estimated_area_square:.2f} km² are is eligible for to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
-        y_position -= 20
+    # if estimated_area_square/10000 < 0.2: 
+    #     y_position = draw_wrapped_text(p, f"The selected area is too small to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
+    #     y_position -= 20
+    # else:   
+    #     y_position = draw_wrapped_text(p, f"If the farm is cleared of forest for 5 years and located in FullCAM area, the {estimated_area_square:.2f} km² are is eligible for to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
+    #     y_position -= 20
 
     # Add NDVI mean and bands mean
     y_position -= 20

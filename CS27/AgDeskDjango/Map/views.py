@@ -411,7 +411,7 @@ def generate_report(request):
         biomass_model = torch.load(BIOMASS_MODEL_PATH, weights_only=False)
         predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
         predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
-        estimated_area_square = calculate_area_square(geometry_data)
+        # estimated_area_square = float(calculate_area_square(geometry_data))
         
 
         # Generate PDF report
