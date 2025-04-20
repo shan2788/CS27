@@ -2,25 +2,37 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-import torch
+import torch.nn as nn
 
-class BiomassRegressor(torch.nn.Module):
+class ResidualBlock(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.fc1 = nn.Linear(dim, dim)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(dim, dim)
+    def forward(self, x):
+        identity = x
+        out = self.fc1(x)
+        out = self.relu(out)
+        out = self.fc2(out)
+        return identity + out
+
+class BiomassRegressor(nn.Module):
     def __init__(self, input_dim):
         super(BiomassRegressor, self).__init__()
-        self.model = torch.nn.Sequential(
-            torch.nn.Linear(input_dim, 128),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(128, 64),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(64, 32),
-            torch.nn.ReLU(),
-            torch.nn.Linear(32, 1)
-        )
-
+        self.fc_in = nn.Linear(input_dim, 128)
+        self.res1 = ResidualBlock(128)
+        self.res2 = ResidualBlock(128)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.2)
+        self.fc_out = nn.Linear(128, 1)
     def forward(self, x):
-        return self.model(x)
+        x = self.relu(self.fc_in(x))
+        x = self.res1(x)
+        x = self.res2(x)
+        x = self.dropout(x)
+        x = self.fc_out(x)
+        return x
     
     
 def main():

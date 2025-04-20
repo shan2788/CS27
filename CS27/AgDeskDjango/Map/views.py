@@ -37,6 +37,8 @@ CROP_ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder.pkl")
 BIOMASS_MODEL_PATH = os.path.join(BASE_DIR, "biomass_model.pkl")
 CACHE_DIR = os.path.join(BASE_DIR, "cache")
 CACHE_INDEX_PATH = os.path.join(CACHE_DIR, "cache_index.json")
+SCALER_X_PATH = os.path.join(BASE_DIR, 'scaler_X.pkl')
+SCALER_Y_PATH = os.path.join(BASE_DIR, 'scaler_y.pkl')
 
 # Set up paths for report generation
 REPORT_PATH = os.path.join(settings.MEDIA_ROOT, "report")
@@ -336,7 +338,6 @@ def get_statistics_for_model_input(request):
     try:
         # get statistics data from the request
         statistics_response = get_statistics_data(request)
-        print(statistics_response)
         data_list = statistics_response.get("data", [])
 
         # Initialize results list
@@ -409,7 +410,12 @@ def generate_report(request):
         predicted_crop = make_crop_prediction(crop_model, encoder, formatted_data, logger)
 
         biomass_model = torch.load(BIOMASS_MODEL_PATH, weights_only=False)
-        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)   
+        scaler_X = joblib.load(SCALER_X_PATH)
+        scaler_y = joblib.load(SCALER_Y_PATH)
+        predicted_biomass = make_biomass_prediction(biomass_model, scaler_X, scaler_y, formatted_data, logger)
+        predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
+        # estimated_area_square = float(calculate_area_square(geometry_data))
+        
 
         # Generate PDF report
         buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)

@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+import os
+import joblib
 
 def make_crop_prediction(model, encoder, formatted_data, logger):
     """
@@ -89,9 +91,9 @@ def calculate_evi(bands_mean, logger):
     except Exception as e:
         logger.error(f"Error calculating EVI: {e}")
         return 0
-    
 
-def make_biomass_prediction(model, formatted_data, logger):
+
+def make_biomass_prediction(model, scaler_X, scaler_y, formatted_data, logger):
     """
     Predict biomass using the given model and formatted data.
 
@@ -134,19 +136,22 @@ def make_biomass_prediction(model, formatted_data, logger):
 
         # Convert to a NumPy array for model input
         band_values = np.array(band_values)
-        band_values_tensor = torch.tensor(band_values, dtype=torch.float32)
+        band_scaled = scaler_X.transform(band_values)
+        band_values_tensor = torch.tensor(band_scaled, dtype=torch.float32)
 
         # Make predictions using the model
         with torch.no_grad():
             predictions = model(band_values_tensor)
-        predictions = predictions.numpy()
+            predictions_log = scaler_y.inverse_transform(predictions.numpy())
+            predictions_mu = np.expm1(predictions_log)
 
-        return predictions
+        return predictions_mu
 
     except Exception as e:
         logger.error(f"Error in make_biomass_prediction: {e}")
         
         return "Error in prediction"
+    
 
 def convert_tree_biomass_array_to_CO2(tree_biomass_array, carbon_content_percentage=50):
     """
