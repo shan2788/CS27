@@ -24,6 +24,7 @@
     <div id="report-history-fragment">
         {% include 'Map/report_history_fragment.html' %}
     </div>
+
 </div>
 
 

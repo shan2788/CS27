@@ -9,7 +9,7 @@ from shapely.geometry import Polygon
 
 import aiohttp
 import asyncio
-
+from .views import get_ndvi_image_binary
 def are_geometries_similar(geometry1, geometry2, threshold=0.8):
     """
     Check if two geometries are similar based on their intersection area.
