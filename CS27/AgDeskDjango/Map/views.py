@@ -693,7 +693,9 @@ def carbon_credit(request):
         formatted_data = get_statistics_for_model_input(request)
 
         biomass_model = torch.load(BIOMASS_MODEL_PATH, weights_only=False)
-        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
+        scaler_X = joblib.load(SCALER_X_PATH)
+        scaler_y = joblib.load(SCALER_Y_PATH)
+        predicted_biomass = make_biomass_prediction(biomass_model, scaler_X, scaler_y, formatted_data, logger)
         predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
         estimated_area_square = calculate_area_square(geometry_data['coordinates'][0])
         
