@@ -12,8 +12,12 @@ import os
 import torch
 import hashlib
 import matplotlib.pyplot as plt
+from collections import defaultdict
+import numpy as np
+import datetime
+import aiohttp
+import asyncio
 
-#测试用
 from io import BytesIO
 import base64
 
@@ -24,7 +28,6 @@ from .predictions import make_crop_prediction, make_biomass_prediction, convert_
 from .utils import generate_pdf_report, are_geometries_similar, generate_credit_report, calculate_area_square 
 from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
 from django.conf import settings
-
 # Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -49,30 +52,40 @@ def map_view(request):
     return render(request, 'Map/map.html', {"sentinel_instance_id": sentinel_instance_id})
 
 
-def get_ndvi_image_binary(geometry, start_date, end_date, evalscript):
+async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscript, use_cache=True):
+    """
+    异步请求 Sentinel Hub 获取 NDVI 图像（PNG 格式），支持缓存。
+    参数:
+        - session: aiohttp.ClientSession 实例
+        - geometry: GeoJSON 格式的区域
+        - start_date, end_date: 时间范围
+        - evalscript: NDVI 渲染脚本
+        - use_cache: 是否启用缓存
+    返回:
+        - 图像的二进制数据，或 None（请求失败）
+    """
 
-   # Load cache index
-    if os.path.exists(CACHE_INDEX_PATH):
+    cache_key = hashlib.md5(f"{geometry}_{start_date}_{end_date}".encode()).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"{cache_key}.png")
+
+    # ------------------ 缓存读取 ------------------
+    if use_cache and os.path.exists(CACHE_INDEX_PATH):
         with open(CACHE_INDEX_PATH, "r") as f:
             cache_index = json.load(f)
+        for cached_key, cached_data in cache_index.items():
+            if are_geometries_similar(geometry, cached_data["geometry"], threshold=0.8):
+                logger.info("Async cache hit based on geometry similarity.")
+                cached_file = cached_data["cache_path"]
+                if os.path.exists(cached_file):
+                    with open(cached_file, "rb") as f:
+                        return f.read()
     else:
         cache_index = {}
 
-    # Check for similar geometries in the cache
-    for cached_key, cached_data in cache_index.items():
-        cached_geometry = cached_data["geometry"]
-        if are_geometries_similar(geometry, cached_geometry, threshold=0.8):
-            logger.info("Cache hit based on geometry similarity. Returning cached NDVI image.")
-            cache_path = cached_data["cache_path"]
-            if os.path.exists(cache_path):
-                with open(cache_path, "rb") as f:
-                    return f.read()
-
+    # ------------------ 请求构建 ------------------
     payload = {
         "input": {
-            "bounds": {
-                "geometry": geometry
-            },
+            "bounds": { "geometry": geometry },
             "data": [{
                 "type": "sentinel-2-l2a",
                 "dataFilter": {
@@ -88,39 +101,49 @@ def get_ndvi_image_binary(geometry, start_date, end_date, evalscript):
             "height": 512,
             "responses": [{
                 "identifier": "default",
-                "format": {"type": "image/png"}
+                "format": { "type": "image/png" }
             }]
         },
         "evalscript": evalscript
     }
 
     headers = {
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {get_sentinel_token()}",
         "Content-Type": "application/json"
     }
 
-    logger.debug("Sending request to Sentinel Hub...")
-    response = requests.post("https://services.sentinel-hub.com/api/v1/process", headers=headers, json=payload)
+    # ------------------ 异步请求 ------------------
+    try:
+        async with session.post("https://services.sentinel-hub.com/api/v1/process",
+                                headers=headers, json=payload, timeout=30) as resp:
+            if resp.status == 200:
+                image_data = await resp.read()
 
-    if response.status_code == 200:
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        cache_key = hashlib.md5(f"{geometry}_{start_date}_{end_date}".encode()).hexdigest()
-        cache_path = os.path.join(CACHE_DIR, f"{cache_key}.png")
-        with open(cache_path, "wb") as f:
-            f.write(response.content)
+                # 写入缓存
+                if use_cache and image_data:
+                    os.makedirs(CACHE_DIR, exist_ok=True)
+                    with open(cache_path, "wb") as f:
+                        f.write(image_data)
+                    cache_index[cache_key] = {
+                        "geometry": geometry,
+                        "cache_path": cache_path
+                    }
+                    with open(CACHE_INDEX_PATH, "w") as f:
+                        json.dump(cache_index, f)
+                    logger.info("NDVI image saved to async cache.")
+                return image_data
+            else:
+                logger.warning(f"Async Sentinel error {resp.status}: {await resp.text()}")
+                return None
+    except asyncio.TimeoutError:
+        logger.error("Request to Sentinel timed out.")
+        return None
+    except Exception as e:
+        logger.error(f"Async error in NDVI fetch: {e}")
+        return None
 
-        # Update cache index
-        cache_index[cache_key] = {
-            "geometry": geometry,
-            "cache_path": cache_path
-        }
-        with open(CACHE_INDEX_PATH, "w") as f:
-            json.dump(cache_index, f)
 
-        logger.info("NDVI image saved to cache.")
-        return response.content
-    else:
-        raise Exception(f"Sentinel error {response.status_code}: {response.text}")
+
 
 
 @csrf_exempt
@@ -132,7 +155,6 @@ def ndvi_view(request):
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
     try:
-
         data = json.loads(request.body)
         geometry = data['geometry']
         start_date = data.get('start_date', "2025-02-23")
@@ -168,16 +190,28 @@ def ndvi_view(request):
             return [r, g, b, a];
         }"""
 
-        image_data = get_ndvi_image_binary(geometry, start_date, end_date, evalscript_ndvi)
-        # FIXME
-        # # just for test
-        # test_data = get_statistics_for_model_input(request)
-        # print(test_data)
-        return HttpResponse(image_data, content_type="image/png")
+        async def fetch_ndvi():
+            async with aiohttp.ClientSession() as session:
+                return await get_ndvi_image_binary(
+                    session=session,
+                    geometry=geometry,
+                    start_date=start_date,
+                    end_date=end_date,
+                    evalscript=evalscript_ndvi,
+                    use_cache=False
+                )
+
+        image_data = asyncio.run(fetch_ndvi())
+
+        if image_data:
+            return HttpResponse(image_data, content_type="image/png")
+        else:
+            return JsonResponse({'error': 'No image returned'}, status=500)
 
     except Exception as e:
         logger.error("NDVI preview error: " + str(e))
         return JsonResponse({'error': str(e)}, status=400)
+
 
 
 @csrf_exempt
@@ -239,7 +273,7 @@ def save_ndvi_result(request):
     except Exception as e:
         logger.error("Error saving NDVI region: " + str(e))
         return JsonResponse({'error': str(e)}, status=400)
-    
+
 
 def get_statistics_data(request):
     token = get_sentinel_token()
@@ -415,7 +449,7 @@ def generate_report(request):
         predicted_biomass = make_biomass_prediction(biomass_model, scaler_X, scaler_y, formatted_data, logger)
         predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
         # estimated_area_square = float(calculate_area_square(geometry_data))
-        
+
 
         # Generate PDF report
         buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
@@ -452,7 +486,7 @@ def generate_report(request):
         logger.error(f"Error generating report: {e}")
         return JsonResponse({'error': str(e)}, status=500)
 
-    
+
 @csrf_exempt
 def tree_recommendation_view(request):
     if request.method == 'POST':
@@ -494,7 +528,7 @@ def tree_recommendation_view(request):
         })
 
         return HttpResponse(html)
-    
+
 
 @login_required
 def region_history(request, farm_id):
@@ -539,13 +573,100 @@ def report_history(request, farm_id):
         except Exception as e:
             logger.error(f"Error parsing request body: {e}")
             return JsonResponse({'error': 'Invalid request'}, status=400)
-        
+
     # Check if the request is an AJAX request
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return render(request, 'Map/report_history_fragment.html', {'farm': farm, 'reports': reports})
 
     # Fallback for non-AJAX requests
     return render(request, 'Map/report_history.html', {'farm': farm, 'reports': reports})
+
+@csrf_exempt
+def ndvi_monthly_summary(request):
+    if request.method != "POST":
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        geometry = data['geometry']
+        start_date = data['start_date']
+        end_date = data['end_date']
+
+        weekly_stats = get_statistics_for_model_input(request)
+        if not weekly_stats:
+            return JsonResponse({'error': 'No weekly data found'}, status=404)
+
+        # ------------------ 每月聚合 ------------------
+        monthly_data = defaultdict(list)
+        for entry in weekly_stats:
+            date_obj = datetime.datetime.fromisoformat(entry["from"][:10])
+            month_key = date_obj.strftime("%Y-%m")
+            monthly_data[month_key].append(entry)
+
+        # ------------------ 准备任务 ------------------
+        month_meta = []
+        month_tasks = []
+
+        evalscript_ndvi = """//VERSION=3
+        function setup() {
+            return { input: ["B04", "B08"], output: { bands: 4, sampleType: "UINT8" }};
+        }
+        function evaluatePixel(sample) {
+            let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
+            let r = 0, g = 0, b = 0, a = 255;
+            if (ndvi < -0.2) { r=0;g=0;b=0; }
+            else if (ndvi < 0) { r=165;g=42;b=42; }
+            else if (ndvi < 0.2) { r=255;g=255;b=0; }
+            else if (ndvi < 0.4) { r=0;g=255;b=0; }
+            else { r=0;g=128;b=0; }
+            if (sample.B08 === 0 && sample.B04 === 0) a = 0;
+            return [r, g, b, a];
+        }"""
+
+        for month, entries in monthly_data.items():
+            ndvi_vals = [e["ndvi_mean"] for e in entries if e["ndvi_mean"] is not None]
+            if not ndvi_vals:
+                continue
+            mean_ndvi = round(np.mean(ndvi_vals), 3)
+            max_ndvi = round(np.max(ndvi_vals), 3)
+            min_ndvi = round(np.min(ndvi_vals), 3)
+            mid_entry = entries[len(entries) // 2]
+            mid_from = mid_entry["from"][:10]
+            mid_to = mid_entry["to"][:10]
+
+            month_meta.append((month, mean_ndvi, max_ndvi, min_ndvi))
+            month_tasks.append((geometry, mid_from, mid_to, evalscript_ndvi))
+
+
+        async def fetch_all_images():
+            results = []
+            async with aiohttp.ClientSession() as session:
+                responses = await asyncio.gather(*[
+                    get_ndvi_image_binary(session, g, s, e, script, use_cache=False)
+                    for g, s, e, script in month_tasks
+                ])
+                for i, image_blob in enumerate(responses):
+                    month, mean, maxv, minv = month_meta[i]
+                    if image_blob is None:
+                        logger.warning(f"No image for {month}, skipping.")
+                        continue
+                    image_base64 = base64.b64encode(image_blob).decode("utf-8")
+                    results.append({
+                        "month": month,
+                        "ndvi_mean": mean,
+                        "ndvi_max": maxv,
+                        "ndvi_min": minv,
+                        "image_base64": image_base64,
+                    })
+            return results
+
+        result = asyncio.run(fetch_all_images())
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        logger.error(f"Monthly NDVI summary error: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 
 @csrf_exempt

@@ -38,11 +38,6 @@
         <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button>
         <button id="view-history-btn" class="btn btn-info">📜 View Region History</button>
         <a href="{% url 'report_history' request.user.currentFarm.id %}" class="btn btn-info">📜 View Report History</a>
-        <br>
-        <div>
-          <button id="carbon-credit-btn" class="btn btn-info">📄 Carbon Credit Report</button>
-          <a href="{% url 'carbon_credit_history' request.user.currentFarm.id %}" class="btn btn-info">📜 View Carbon Credit History</a>
-        </p>
         <button class="btn btn-warning" onclick="fetchMonthlyNDVI()">📆 Monthly NDVI Summary</button>
 
     </div>
@@ -72,7 +67,7 @@
             <img id="ndvi-image" style="max-width: 100%; border: 1px solid #ccc;" />
         </div>
     </div>
-
+    
     <div id="monthly-ndvi-container" class="row mt-4"></div>
 
 
@@ -274,49 +269,6 @@ function debounceSubmitPolygon() {
     });
   });
 
-  document.getElementById("carbon-credit-btn").addEventListener("click", function () {
-    if (!drawnPolygon) {
-        alert("Please draw a region first.");
-        return;
-    }
-
-    const geojson = drawnPolygon.toGeoJSON();
-    const startDate = document.getElementById("start-date").value;
-    const endDate = document.getElementById("end-date").value;
-
-    fetch("/map/api/carbon-credit/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": "{{ csrf_token }}"
-        },
-        body: JSON.stringify({
-            geometry: geojson.geometry,
-            start_date: startDate,
-            end_date: endDate
-        })
-    })
-    .then(res => {
-        if (!res.ok) throw new Error("Network response was not ok");
-        return res.blob(); // Assuming the report is returned as a file (e.g., PDF)
-    })
-    .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.style.display = "none";
-        a.href = url;
-        a.download = "Carbon_Credit.pdf"; // Default file name
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        alert("Carbon Credit Report downloaded successfully!");
-    })
-    .catch(err => {
-        alert("Unable to calculate carbon credit report.");
-        console.error(err);
-    });
-  });
-
 
   // const customDrawer = new L.Draw.Polygon(map, {
   //   allowIntersection: false,
@@ -491,83 +443,6 @@ L.Draw.Triangle = L.Draw.SimpleShape.extend({
             .catch(err => {
                 console.error(err);
                 reportHistoryContent.innerHTML = "<p>Error loading report history.</p>";
-            });
-    } else {
-        reportHistorySection.style.display = "none";
-    }
-  });
-  function fetchMonthlyNDVI() {
-  if (!drawnPolygon) {
-    alert("Please draw a region.");
-    return;
-  }
-
-  const geojson = drawnPolygon.toGeoJSON();
-  const startDate = document.getElementById("start-date").value;
-  const endDate = document.getElementById("end-date").value;
-
-  fetch("/map/api/ndvi-monthly/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": "{{ csrf_token }}"
-    },
-    body: JSON.stringify({
-      geometry: geojson.geometry,
-      start_date: startDate,
-      end_date: endDate
-    })
-  })
-    .then(res => res.json())
-    .then(data => {
-      const container = document.getElementById("monthly-ndvi-container");
-      container.innerHTML = "";
-      data.forEach(item => {
-        const card = `
-          <div class="col-md-4 mb-3">
-            <div class="card">
-              <div class="card-header">${item.month}</div>
-              <img src="data:image/png;base64,${item.image_base64}" class="card-img-top" />
-              <div class="card-body">
-                <p><strong>Mean NDVI:</strong> ${item.ndvi_mean}</p>
-                <p><strong>Max NDVI:</strong> ${item.ndvi_max}</p>
-                <p><strong>Min NDVI:</strong> ${item.ndvi_min}</p>
-              </div>
-            </div>
-          </div>`;
-        container.insertAdjacentHTML("beforeend", card);
-      });
-    })
-    .catch(err => {
-      console.error("Error:", err);
-      alert("Failed to fetch monthly NDVI summary.");
-    });
-}
-
-
-  document.getElementById("view-carbon-credit-history-btn").addEventListener("click", function () {
-    const reportHistorySection = document.getElementById("carbon-credit-history-section");
-    const reportHistoryContent = document.getElementById("carbon-credit-history-content");
-
-    // Replace with the actual farm ID
-    const farmId = "{{ request.user.currentFarm.id }}";
-
-    // Toggle visibility
-    if (reportHistorySection.style.display === "none") {
-        reportHistorySection.style.display = "block";
-
-        // Fetch report history content
-        fetch(`/map/api/carbon-credit-history/${farmId}/`)
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to load carbon credit history.");
-                return res.text();
-            })
-            .then(html => {
-                reportHistoryContent.innerHTML = html;
-            })
-            .catch(err => {
-                console.error(err);
-                reportHistoryContent.innerHTML = "<p>Error loading carbon credit history.</p>";
             });
     } else {
         reportHistorySection.style.display = "none";

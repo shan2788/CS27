@@ -15,5 +15,7 @@ urlpatterns = [
     path('api/report-history/<int:farm_id>/', views.report_history, name='report_history'),
     path('api/carbon-credit/', views.carbon_credit, name='carbon_credit'),
     path('api/carbon-credit-history/<int:farm_id>/', views.carbon_credit_history, name='carbon_credit_history'),
+    path("api/ndvi-monthly/", views.ndvi_monthly_summary, name="ndvi_monthly_summary"),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

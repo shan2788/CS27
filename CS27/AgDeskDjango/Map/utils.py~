@@ -6,11 +6,10 @@ from shapely.geometry import shape
 from shapely.ops import unary_union
 import geopandas as gpd
 from shapely.geometry import Polygon
-import numpy as np
 
 import aiohttp
 import asyncio
-
+from .views import get_ndvi_image_binary
 def are_geometries_similar(geometry1, geometry2, threshold=0.8):
     """
     Check if two geometries are similar based on their intersection area.
@@ -66,7 +65,7 @@ def draw_wrapped_text(p, text, x, y, max_width, line_height=15):
     return y  # Return the final y-coordinate
 
 
-def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data):
+def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, predicted_CO2, formatted_data):
     buffer = BytesIO()
     p = canvas.Canvas(buffer)
 
@@ -79,6 +78,15 @@ def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass,
     y_position = 740
     y_position = draw_wrapped_text(p, f"Predicted Crop: {predicted_crop}", 100, y_position, max_width=400)
     y_position = draw_wrapped_text(p, f"Predicted Biomass: {predicted_biomass}", 100, y_position - 20, max_width=400)
+    y_position = draw_wrapped_text(p, f"Predicted CO2: {predicted_CO2}", 100, y_position - 20, max_width=400)
+    # y_position = draw_wrapped_text(p, f"Predicted CO2: {estimated_area_square}", 100, y_position - 20, max_width=400)
+    
+    # if estimated_area_square/10000 < 0.2: 
+    #     y_position = draw_wrapped_text(p, f"The selected area is too small to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
+    #     y_position -= 20
+    # else:   
+    #     y_position = draw_wrapped_text(p, f"If the farm is cleared of forest for 5 years and located in FullCAM area, the {estimated_area_square:.2f} km² are is eligible for to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
+    #     y_position -= 20
 
     # Add NDVI mean and bands mean
     y_position -= 20
@@ -107,43 +115,6 @@ def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass,
     buffer.seek(0)
     return buffer
 
-def generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data):
-    buffer = BytesIO()
-    p = canvas.Canvas(buffer)
-
-    # Title and metadata
-    p.drawString(100, 800, "Carbon Credit Report")
-    p.drawString(100, 780, f"Start Date: {start_date}")
-    p.drawString(100, 760, f"End Date: {end_date}")
-
-    # Add predicted crop and biomass with wrapping
-    y_position = 740
-    y_position = draw_wrapped_text(p, f"Farm Geometry: {geometry_data['coordinates'][0]}", 100, y_position, max_width=400)
-    for entry in predicted_CO2: 
-        if entry > 0:
-            p
-    # y_position = draw_wrapped_text(p, f"Predicted CO2: {predicted_CO2}", 100, y_position - 20, max_width=400)
-    average_CO2 = np.array(predicted_CO2)
-    y_position = draw_wrapped_text(p, f"Predicted average carbon stock for the selected time period (kg): {calculate_positive_average(average_CO2)}", 100, y_position - 20, max_width=400)
-    
-    y_position = draw_wrapped_text(p, f"Estimate area square (km2): {estimated_area_square}", 100, y_position - 20, max_width=400)
-    y_position = draw_wrapped_text(p, f"Estimate area square (ha): {estimated_area_square*100}", 100, y_position - 20, max_width=400)
-    
-    if estimated_area_square*100 < 0.2: 
-        y_position = draw_wrapped_text(p, f"The selected area is too small to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
-        y_position -= 20
-    else:   
-        y_position = draw_wrapped_text(p, f"If the farm is cleared of forest for 5 years and located in FullCAM area, the {estimated_area_square:.2f} km² is eligible for to earn Australian carbon credit units.", 100, y_position - 20, max_width=400)
-        y_position -= 20
-
-    # Save the PDF
-    p.showPage()
-    p.save()
-
-    # Return PDF as response
-    buffer.seek(0)
-    return buffer
-
 def calculate_area_square(region_coordinates):
     """
     Calculate the area in square kilometers of a selected region.
@@ -163,21 +134,5 @@ def calculate_area_square(region_coordinates):
     area_square_km = region_gdf_projected.geometry[0].area / 1_000_000
 
     return area_square_km
-
-def calculate_positive_average(array):
-    """
-    Calculate the average of values in a numpy array that are greater than 0.
-    :param array: Numpy array of numerical values
-    :return: Average of positive values or None if no positive values exist
-    """
-    # Filter positive values
-    positive_values = array[array > 0]
-
-    # Calculate average if positive values exist
-    if positive_values.size > 0:
-        return np.mean(positive_values)
-    else:
-        return None  # Return None if no positive values
-
 
 
