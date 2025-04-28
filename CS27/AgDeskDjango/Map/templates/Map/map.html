@@ -68,13 +68,33 @@
         <button class="btn btn-success" onclick="debounceSubmitPolygon()">Get NDVI</button>
         <button class="btn btn-success" hx-post="{% url 'tree-recommendation' %}" hx-vals='js:{"geometry": selectedGeometry}' hx-target="#tree-recommendation-result" hx-target="#tree-recommendation-result" hx-swap="innerHTML">Tree Recommendation</button>
         <button id="save-ndvi-btn" class="btn btn-success">💾 Save NDVI Region</button>
-        <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button>
-        <button id="view-history-btn" class="btn btn-info">📜 View Region History</button>
-        <a href="{% url 'report_history' request.user.currentFarm.id %}" class="btn btn-info">📜 View Report History</a>
+        <div class="btn-group">
+          <div class="dropdown">
+            <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              📄 Generate Report
+            </button>
+            <ul class="dropdown-menu">
+              <li><button id="generate-report-btn" class="btn btn-info">📄 NDVI Report</button></li>
+              <li><button id="carbon-credit-btn" class="btn btn-info">📄 Carbon Credit Report</button></li>
+            </ul>
+          </div>
+          <div class="dropdown">
+            <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              📜 View History
+            </button>
+            <ul class="dropdown-menu">
+              <button id="view-history-btn" class="btn btn-info">📜 View Region History</button>
+              <a href="{% url 'report_history' request.user.currentFarm.id %}" class="btn btn-info">📜 View NDVI Report History</a>
+              <a href="{% url 'carbon_credit_history' request.user.currentFarm.id %}" class="btn btn-info">📜 View Carbon Credit History</a>
+            </ul>
+          </div>
+        </div>
+        
+        {% comment %} <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button> {% endcomment %}
+        {% comment %} <button id="view-history-btn" class="btn btn-info">📜 View Region History</button>
+        <a href="{% url 'report_history' request.user.currentFarm.id %}" class="btn btn-info">📜 View Report History</a> {% endcomment %}
         <br>
         <div>
-          <button id="carbon-credit-btn" class="btn btn-info">📄 Carbon Credit Report</button>
-          <a href="{% url 'carbon_credit_history' request.user.currentFarm.id %}" class="btn btn-info">📜 View Carbon Credit History</a>
         </p>
         <button class="btn btn-warning" onclick="fetchMonthlyNDVI()">📆 Monthly NDVI Summary</button>
 
