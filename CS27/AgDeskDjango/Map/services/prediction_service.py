@@ -22,11 +22,9 @@ class CropModelService(ModelService):
         self.scaler_y = joblib.load(scaler_y_path) if scaler_y_path else None
         self.encoder = joblib.load(encoder_path) if encoder_path else None
 
-    # 重写父类方法
     def make_prediction(self, formatted_data):
         try:
             # Extract the band values from the formatted data
-            print(0)
             band_values = []
             for entry in formatted_data:
                 bands_mean = entry["bands_mean"]

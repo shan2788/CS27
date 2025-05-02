@@ -17,7 +17,7 @@ from collections import defaultdict
 
 from .models import NDVIRegion, NDVIReport, CarbonCredit
 from FarmAcc.models import FarmInfo
-from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
+from .services.sentinel_service import SentinelService
 from .services.prediction_service import CropModelService, BiomassModelService, convert_tree_biomass_array_to_CO2
 from .utils import (
     generate_pdf_report, are_geometries_similar, generate_credit_report,
@@ -56,9 +56,10 @@ function evaluatePixel(sample) {
   return [r, g, b, a];
 }"""
 
+SENTINEL_SERVICE = SentinelService()
 @login_required(login_url="login")
 def map_view(request):
-    return render(request, 'Map/map.html', {"sentinel_instance_id": get_sentinel_instance_id()})
+    return render(request, 'Map/map.html', {"sentinel_instance_id": SENTINEL_SERVICE.get_instance_id()})
 
 # ------------------ Utility: fetch NDVI image ------------------
 
@@ -105,7 +106,7 @@ async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscr
     }
 
     headers = {
-        "Authorization": f"Bearer {get_sentinel_token()}",
+        "Authorization": f"Bearer {SENTINEL_SERVICE.get_token()}",
         "Content-Type": "application/json"
     }
 
@@ -328,7 +329,7 @@ def get_statistics_data(geometry, start_date, end_date):
     }
 
     headers = {
-        "Authorization": f"Bearer {get_sentinel_token()}",
+        "Authorization": f"Bearer {SENTINEL_SERVICE.get_token()}",
         "Content-Type": "application/json"
     }
 
@@ -371,8 +372,6 @@ def get_statistics_for_model_input(geometry, start_date, end_date):
         return []
 
 
-
-...
 
 # ------------------ View: generate NDVI report ------------------
 
