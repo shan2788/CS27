@@ -18,7 +18,7 @@ from collections import defaultdict
 from .models import NDVIRegion, NDVIReport, CarbonCredit
 from FarmAcc.models import FarmInfo
 from .sentinel_auth import get_sentinel_token, get_sentinel_instance_id
-from .predictions import make_crop_prediction, make_biomass_prediction, convert_tree_biomass_array_to_CO2
+from .services.prediction_service import CropModelService, BiomassModelService, convert_tree_biomass_array_to_CO2
 from .utils import (
     generate_pdf_report, are_geometries_similar, generate_credit_report,
     calculate_area_square
@@ -396,16 +396,12 @@ def generate_report(request):
         formatted_data = get_statistics_for_model_input(geometry_data, start_date, end_date)
 
         # Step 2: 作物预测
-        crop_model = joblib.load(MODEL_PATHS['crop_model'])
-        encoder = joblib.load(MODEL_PATHS['crop_encoder'])
-        predicted_crop = make_crop_prediction(crop_model, encoder, formatted_data, logger)
+        crop_model = CropModelService(logger, model_path=MODEL_PATHS['crop_model'], encoder_path=MODEL_PATHS['crop_encoder'])
+        predicted_crop = crop_model.make_prediction(formatted_data)
 
         # Step 3: 生物量预测与 CO2 转换
-        biomass_model = torch.load(MODEL_PATHS['biomass_model'], weights_only=False)
-        scaler_X = joblib.load(MODEL_PATHS['scaler_X'])
-        scaler_y = joblib.load(MODEL_PATHS['scaler_y'])
-        predicted_biomass = make_biomass_prediction(biomass_model, scaler_X, scaler_y, formatted_data, logger)
-        predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
+        biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
+        predicted_biomass = biomass_model.make_prediction(formatted_data)
 
         # Step 4: 报告生成与保存
         buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
@@ -573,8 +569,8 @@ def carbon_credit(request):
         formatted_data = get_statistics_for_model_input(geometry_data, start_date, end_date)
 
         # Step 2: Predict biomass & CO2
-        biomass_model = torch.load(MODEL_PATHS['biomass_model'], weights_only=False)
-        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
+        biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
+        predicted_biomass = biomass_model.make_prediction(formatted_data)
         predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
 
         # Step 3: Calculate area (GeoJSON assumed to be polygon)
@@ -629,8 +625,8 @@ def carbon_credit(request):
         geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
         formatted_data = get_statistics_for_model_input(geometry_data, start_date, end_date)
 
-        biomass_model = torch.load(MODEL_PATHS['biomass_model'], weights_only=False)
-        predicted_biomass = make_biomass_prediction(biomass_model, formatted_data, logger)
+        biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
+        predicted_biomass = biomass_model.make_prediction(formatted_data)
         predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
 
         estimated_area_square = calculate_area_square(geometry_data['coordinates'][0])
