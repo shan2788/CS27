@@ -160,13 +160,13 @@ py manage.py reset_db
 Then do the migration again
 
 ```shell
-python delete_migrations.py
+py delete_migrations.py
 ```
 
 ```shell
-python manage.py makemigrations
+py manage.py makemigrations
 ```
 
 ```shell
-python manage.py migrate
+py manage.py migrate
 ```
