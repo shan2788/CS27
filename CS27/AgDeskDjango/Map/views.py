@@ -19,10 +19,8 @@ from .models import NDVIRegion, NDVIReport, CarbonCredit
 from FarmAcc.models import FarmInfo
 from .services.sentinel_service import SentinelService
 from .services.prediction_service import CropModelService, BiomassModelService
-from .utils import (
-    generate_pdf_report, are_geometries_similar, generate_credit_report,
-    calculate_area_square
-)
+from .services.pdf_service import PDFService
+from .services.geo_service import GeoService
 from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
 
 logger = logging.getLogger(__name__)
@@ -57,6 +55,9 @@ function evaluatePixel(sample) {
 }"""
 
 SENTINEL_SERVICE = SentinelService()
+PDF_SERVICE = PDFService()
+GEO_SERVICE = GeoService()
+
 @login_required(login_url="login")
 def map_view(request):
     return render(request, 'Map/map.html', {"sentinel_instance_id": SENTINEL_SERVICE.get_instance_id()})
@@ -73,7 +74,7 @@ async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscr
         with open(MODEL_PATHS['cache_index'], "r") as f:
             cache_index = json.load(f)
         for cached_key, cached_data in cache_index.items():
-            if are_geometries_similar(geometry, cached_data["geometry"], threshold=0.8):
+            if GEO_SERVICE.are_geometries_similar(geometry, cached_data["geometry"], threshold=0.8):
                 logger.info("Async cache hit based on geometry similarity.")
                 cached_file = cached_data["cache_path"]
                 if os.path.exists(cached_file):
@@ -403,7 +404,7 @@ def generate_report(request):
         predicted_biomass = biomass_model.make_prediction(formatted_data)
 
         # Step 4: 报告生成与保存
-        buffer = generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
+        buffer = PDF_SERVICE.generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
         filename = f"NDVI_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         file_path = os.path.join(REPORT_PATH, filename)
         os.makedirs(REPORT_PATH, exist_ok=True)
@@ -573,10 +574,10 @@ def carbon_credit(request):
         predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
 
         # Step 3: Calculate area (GeoJSON assumed to be polygon)
-        estimated_area_square = calculate_area_square(geometry_data['coordinates'][0])
+        estimated_area_square = GEO_SERVICE.calculate_area_square(geometry_data['coordinates'][0])
 
         # Step 4: Generate PDF report
-        buffer = generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
+        buffer = PDF_SERVICE.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
         filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         os.makedirs(REPORT_PATH, exist_ok=True)
         file_path = os.path.join(REPORT_PATH, filename)
@@ -628,9 +629,9 @@ def carbon_credit(request):
         predicted_biomass = biomass_model.make_prediction(formatted_data)
         predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
 
-        estimated_area_square = calculate_area_square(geometry_data['coordinates'][0])
+        estimated_area_square = GEO_SERVICE.calculate_area_square(geometry_data['coordinates'][0])
 
-        buffer = generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
+        buffer = PDF_SERVICE.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
         filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         os.makedirs(REPORT_PATH, exist_ok=True)
         file_path = os.path.join(REPORT_PATH, filename)
