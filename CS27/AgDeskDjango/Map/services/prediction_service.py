@@ -86,7 +86,7 @@ class BiomassModelService(ModelService):
             for entry in formatted_data:
                 bands_mean = entry["bands_mean"]
                 ndvi_mean = entry.get("ndvi_mean", 0)  # NDVI mean value
-                evi_mean = self.calculate_evi(bands_mean, self.logger)  # Calculate EVI
+                evi_mean = self.calculate_evi(bands_mean)  # Calculate EVI
 
                 # Ensure the order of inputs matches the expected input format
                 band_values.append([
