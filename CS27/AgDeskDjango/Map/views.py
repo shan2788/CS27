@@ -18,7 +18,7 @@ from collections import defaultdict
 from .models import NDVIRegion, NDVIReport, CarbonCredit
 from FarmAcc.models import FarmInfo
 from .services.sentinel_service import SentinelService
-from .services.prediction_service import CropModelService, BiomassModelService, convert_tree_biomass_array_to_CO2
+from .services.prediction_service import CropModelService, BiomassModelService
 from .utils import (
     generate_pdf_report, are_geometries_similar, generate_credit_report,
     calculate_area_square
@@ -30,8 +30,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATHS = {
-    'crop_model': os.path.join(BASE_DIR, "rf_model.pkl"),
-    'crop_encoder': os.path.join(BASE_DIR, "label_encoder.pkl"),
+    'crop_model': os.path.join(BASE_DIR, "crop_classifier_c_model.pkl"),
+    'crop_encoder': os.path.join(BASE_DIR, "crop_label_c_encoder.pkl"),
     'biomass_model': os.path.join(BASE_DIR, "biomass_model.pkl"),
     'scaler_X': os.path.join(BASE_DIR, 'scaler_X.pkl'),
     'scaler_y': os.path.join(BASE_DIR, 'scaler_y.pkl'),
@@ -570,7 +570,7 @@ def carbon_credit(request):
         # Step 2: Predict biomass & CO2
         biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
         predicted_biomass = biomass_model.make_prediction(formatted_data)
-        predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
+        predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
 
         # Step 3: Calculate area (GeoJSON assumed to be polygon)
         estimated_area_square = calculate_area_square(geometry_data['coordinates'][0])
@@ -626,7 +626,7 @@ def carbon_credit(request):
 
         biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
         predicted_biomass = biomass_model.make_prediction(formatted_data)
-        predicted_CO2 = convert_tree_biomass_array_to_CO2(predicted_biomass)
+        predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
 
         estimated_area_square = calculate_area_square(geometry_data['coordinates'][0])
 

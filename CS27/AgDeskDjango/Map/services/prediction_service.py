@@ -37,13 +37,18 @@ class CropModelService(ModelService):
             # Convert to a NumPy array for model input
             band_values = np.array(band_values)
             # Make predictions using the model
-            predictions = self.model.predict(band_values)
-            # Ensure predictions are a 1D array
-            predictions = np.array(predictions).flatten()
-            # Decode the predicted labels using the encoder
-            decoded_results = self.encoder.inverse_transform(predictions)
+            predictions_proba = self.model.predict_proba(band_values)
+
+            top3_idx = np.argsort(predictions_proba, axis=1)[:, -3:][:, ::-1]
+            top3_labels = [self.encoder.inverse_transform(idx) for idx in top3_idx]
+            result = []
+            for labels, probs in zip(top3_labels, predictions_proba):
+                top3_probs = probs[np.argsort(probs)[-3:][::-1]]
+                result.append([(label, round(float(prob), 4)) for label, prob in zip(labels, top3_probs)])
+
+            top3_text = '; '.join([', '.join([f"{label} ({prob})" for label, prob in sample]) for sample in result])
             
-            return decoded_results
+            return top3_text
 
         except Exception as e:
             self.logger.error(f"Error in making predictions in crop species: {e}")
@@ -116,27 +121,27 @@ class BiomassModelService(ModelService):
             
             return "Error in prediction"
 
-def convert_tree_biomass_array_to_CO2(tree_biomass_array, carbon_content_percentage=50):
-    """
-    Convert an array of tree biomass values to equivalent CO2 emissions.
-    :param tree_biomass_array: Array of tree biomass values (in kilograms)
-    :param carbon_content_percentage: Percentage of biomass that is carbon (default: 50% for trees)
-    :return: Array of CO2 emissions (in kilograms)
-    """
-    # Constants
-    molar_mass_C = 12.01  # g/mol (Carbon)
-    molar_mass_CO2 = 44.01  # g/mol (Carbon Dioxide)
+    def convert_tree_biomass_array_to_CO2(self, tree_biomass_array, carbon_content_percentage=50):
+        """
+        Convert an array of tree biomass values to equivalent CO2 emissions.
+        :param tree_biomass_array: Array of tree biomass values (in kilograms)
+        :param carbon_content_percentage: Percentage of biomass that is carbon (default: 50% for trees)
+        :return: Array of CO2 emissions (in kilograms)
+        """
+        # Constants
+        molar_mass_C = 12.01  # g/mol (Carbon)
+        molar_mass_CO2 = 44.01  # g/mol (Carbon Dioxide)
 
-    # Convert tree biomass array to grams
-    tree_biomass_array_grams = np.array(tree_biomass_array) * 1000  # kilograms to grams
+        # Convert tree biomass array to grams
+        tree_biomass_array_grams = np.array(tree_biomass_array) * 1000  # kilograms to grams
 
-    # Calculate carbon mass in the tree biomass array
-    carbon_mass_array = tree_biomass_array_grams * (carbon_content_percentage / 100)
+        # Calculate carbon mass in the tree biomass array
+        carbon_mass_array = tree_biomass_array_grams * (carbon_content_percentage / 100)
 
-    # Convert carbon mass to CO2 mass (in grams)
-    CO2_mass_array_grams = carbon_mass_array * (molar_mass_CO2 / molar_mass_C)
+        # Convert carbon mass to CO2 mass (in grams)
+        CO2_mass_array_grams = carbon_mass_array * (molar_mass_CO2 / molar_mass_C)
 
-    # Convert CO2 mass back to kilograms
-    CO2_mass_array_kg = CO2_mass_array_grams / 1000  # grams to kilograms
-    
-    return CO2_mass_array_kg
+        # Convert CO2 mass back to kilograms
+        CO2_mass_array_kg = CO2_mass_array_grams / 1000  # grams to kilograms
+        
+        return CO2_mass_array_kg

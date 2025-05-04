@@ -66,3 +66,6 @@ AgDeskDjango/Map/report/*
 
 # Allow the report folder itself
 !AgDeskDjango/Map/report/
+
+AgDeskDjango/Map/crop_classifier_c_model.pkl
+AgDeskDjango/Map/crop_label_c_encoder.pkl
