@@ -141,14 +141,14 @@
   }).addTo(map);
 
   let sentinelLayer = L.tileLayer.wms('https://services.sentinel-hub.com/ogc/wms/{{ sentinel_instance_id }}', {
-    layers: 'VEGETATION_INDEX',
+    layers: '3_NDVI',
     format: 'image/png',
     transparent: true,
     SHOWLOGO: false,
     attribution: '&copy; Sentinel Hub',
     updateWhenIdle: true,
     reuseTiles: true
-});
+  });
 
 
   // Layer Control
