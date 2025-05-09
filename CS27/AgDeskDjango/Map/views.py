@@ -8,7 +8,7 @@ from django.template.loader import render_to_string
 from django.utils.dateparse import parse_date
 from django.conf import settings
 
-import os, json, requests, datetime, logging, joblib, torch, hashlib, base64
+import os, json, requests, datetime, logging, hashlib, base64
 import matplotlib.pyplot as plt
 import numpy as np
 import asyncio, aiohttp
@@ -55,8 +55,6 @@ function evaluatePixel(sample) {
 }"""
 
 SENTINEL_SERVICE = SentinelService()
-PDF_SERVICE = PDFService()
-GEO_SERVICE = GeoService()
 
 @login_required(login_url="login")
 def map_view(request):
@@ -74,7 +72,7 @@ async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscr
         with open(MODEL_PATHS['cache_index'], "r") as f:
             cache_index = json.load(f)
         for cached_key, cached_data in cache_index.items():
-            if GEO_SERVICE.are_geometries_similar(geometry, cached_data["geometry"], threshold=0.8):
+            if GeoService.are_geometries_similar(geometry, cached_data["geometry"], threshold=0.8):
                 logger.info("Async cache hit based on geometry similarity.")
                 cached_file = cached_data["cache_path"]
                 if os.path.exists(cached_file):
@@ -131,143 +129,6 @@ async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscr
     except Exception as e:
         logger.error(f"Async error in NDVI fetch: {e}")
     return None
-
-# ------------------ View: return NDVI image (no save) ------------------
-
-@csrf_exempt
-def ndvi_view(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        geometry = data['geometry']
-        start_date = data.get('start_date', "2025-02-23")
-        end_date = data.get('end_date', "2025-03-23")
-
-        async def fetch_ndvi():
-            async with aiohttp.ClientSession() as session:
-                return await get_ndvi_image_binary(
-                    session=session,
-                    geometry=geometry,
-                    start_date=start_date,
-                    end_date=end_date,
-                    evalscript=NDVI_EVALSCRIPT,
-                    use_cache=False
-                )
-
-        image_data = asyncio.run(fetch_ndvi())
-        if image_data:
-            return HttpResponse(image_data, content_type="image/png")
-        return JsonResponse({'error': 'No image returned'}, status=500)
-
-    except Exception as e:
-        logger.error("NDVI preview error: " + str(e))
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-
-# ------------------ Utility: save NDVI image to database ------------------
-
-def save_ndvi_image_to_region(farm, geometry_data, image_binary):
-    geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-    region = NDVIRegion(farm=farm, geometry=geo_obj)
-    filename = f"ndvi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
-    region.image.save(filename, ContentFile(image_binary))
-    region.save()
-    return region.id
-
-# ------------------ View: save NDVI result ------------------
-
-@csrf_exempt
-def save_ndvi_result(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        current_user = request.user
-        farm_id = current_user.currentFarm_id
-        data = json.loads(request.body)
-
-        geometry_data = data['geometry']
-        start_date = data.get('start_date', "2025-02-23")
-        end_date = data.get('end_date', "2025-03-23")
-
-        async def fetch_and_save():
-            async with aiohttp.ClientSession() as session:
-                image_binary = await get_ndvi_image_binary(
-                    session=session,
-                    geometry=geometry_data,
-                    start_date=start_date,
-                    end_date=end_date,
-                    evalscript=NDVI_EVALSCRIPT,
-                    use_cache=True
-                )
-                if not image_binary:
-                    return None
-                farm = FarmInfo.objects.get(id=farm_id)
-                return save_ndvi_image_to_region(farm, geometry_data, image_binary)
-
-        region_id = asyncio.run(fetch_and_save())
-        if region_id:
-            return JsonResponse({'status': 'ok', 'id': region_id})
-        return JsonResponse({'error': 'Failed to fetch or save image'}, status=500)
-
-    except Exception as e:
-        logger.error("Error saving NDVI region: " + str(e))
-        return JsonResponse({'error': str(e)}, status=400)
-
-...
-
-# ------------------ Utility: save NDVI image to database ------------------
-
-def save_ndvi_image_to_region(farm, geometry_data, image_binary):
-    geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-    region = NDVIRegion(farm=farm, geometry=geo_obj)
-    filename = f"ndvi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
-    region.image.save(filename, ContentFile(image_binary))
-    region.save()
-    return region.id
-
-# ------------------ View: save NDVI result ------------------
-
-@csrf_exempt
-def save_ndvi_result(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        current_user = request.user
-        farm_id = current_user.currentFarm_id
-        data = json.loads(request.body)
-
-        geometry_data = data['geometry']
-        start_date = data.get('start_date', "2025-02-23")
-        end_date = data.get('end_date', "2025-03-23")
-
-        async def fetch_and_save():
-            async with aiohttp.ClientSession() as session:
-                image_binary = await get_ndvi_image_binary(
-                    session=session,
-                    geometry=geometry_data,
-                    start_date=start_date,
-                    end_date=end_date,
-                    evalscript=NDVI_EVALSCRIPT,
-                    use_cache=True
-                )
-                if not image_binary:
-                    return None
-                farm = FarmInfo.objects.get(id=farm_id)
-                return save_ndvi_image_to_region(farm, geometry_data, image_binary)
-
-        region_id = asyncio.run(fetch_and_save())
-        if region_id:
-            return JsonResponse({'status': 'ok', 'id': region_id})
-        return JsonResponse({'error': 'Failed to fetch or save image'}, status=500)
-
-    except Exception as e:
-        logger.error("Error saving NDVI region: " + str(e))
-        return JsonResponse({'error': str(e)}, status=400)
 
 # ------------------ Utility: get NDVI statistics ------------------
 
@@ -404,7 +265,7 @@ def generate_report(request):
         predicted_biomass = biomass_model.make_prediction(formatted_data)
 
         # Step 4: 报告生成与保存
-        buffer = PDF_SERVICE.generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
+        buffer = PDFService.generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
         filename = f"NDVI_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         file_path = os.path.join(REPORT_PATH, filename)
         os.makedirs(REPORT_PATH, exist_ok=True)
@@ -574,10 +435,10 @@ def carbon_credit(request):
         predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
 
         # Step 3: Calculate area (GeoJSON assumed to be polygon)
-        estimated_area_square = GEO_SERVICE.calculate_area_square(geometry_data['coordinates'][0])
+        estimated_area_square = GeoService.calculate_area_square(geometry_data['coordinates'][0])
 
         # Step 4: Generate PDF report
-        buffer = PDF_SERVICE.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
+        buffer = PDFService.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
         filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         os.makedirs(REPORT_PATH, exist_ok=True)
         file_path = os.path.join(REPORT_PATH, filename)
@@ -629,9 +490,9 @@ def carbon_credit(request):
         predicted_biomass = biomass_model.make_prediction(formatted_data)
         predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
 
-        estimated_area_square = GEO_SERVICE.calculate_area_square(geometry_data['coordinates'][0])
+        estimated_area_square = GeoService.calculate_area_square(geometry_data['coordinates'][0])
 
-        buffer = PDF_SERVICE.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
+        buffer = PDFService.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
         filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         os.makedirs(REPORT_PATH, exist_ok=True)
         file_path = os.path.join(REPORT_PATH, filename)

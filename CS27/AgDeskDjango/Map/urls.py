@@ -1,14 +1,15 @@
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
+from .ndvi_views import NDVIImageView, NDVIImageSaveView
 from . import views
 
 
 
 urlpatterns = [
     path('', views.map_view, name='map'),
-    path('api/ndvi/', views.ndvi_view, name='ndvi_view'),
-    path('api/save-ndvi/', views.save_ndvi_result, name='save_ndvi_result'),
+    path('api/ndvi/', NDVIImageView.as_view(), name='ndvi_view'),
+    path('api/save-ndvi/', NDVIImageSaveView.as_view(), name='save_ndvi_result'),
     path('api/generate-report/', views.generate_report, name='generate_report'),
     path('recommend-tree/', views.tree_recommendation_view, name='tree-recommendation'),
     path('api/region-history/<int:farm_id>/', views.region_history, name='region_history'),

@@ -7,7 +7,8 @@ class GeoService:
     def __init__(self):
         pass
 
-    def are_geometries_similar(self, geometry1, geometry2, threshold=0.8):
+    @staticmethod
+    def are_geometries_similar(geometry1, geometry2, threshold=0.8):
         """
         Check if two geometries are similar based on their intersection area.
 
@@ -31,7 +32,8 @@ class GeoService:
 
         return overlap_ratio >= threshold
     
-    def calculate_area_square(self, region_coordinates):
+    @staticmethod
+    def calculate_area_square(region_coordinates):
         """
         Calculate the area in square kilometers of a selected region.
         :param region_coordinates: List of tuples [(lat, lon), ...] representing the region
