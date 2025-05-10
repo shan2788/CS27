@@ -22,7 +22,8 @@ from .services.prediction_service import CropModelService, BiomassModelService
 from .services.pdf_service import PDFService
 from .services.geo_service import GeoService
 from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
-
+from .services.ndvi_service import NDVIService
+from .services.statistics_service import StatisticsService
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
@@ -60,151 +61,82 @@ SENTINEL_SERVICE = SentinelService()
 def map_view(request):
     return render(request, 'Map/map.html', {"sentinel_instance_id": SENTINEL_SERVICE.get_instance_id()})
 
-# ------------------ Utility: fetch NDVI image ------------------
-
-async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscript, use_cache=True):
-    cache_key = hashlib.md5(f"{geometry}_{start_date}_{end_date}".encode()).hexdigest()
-    cache_path = os.path.join(MODEL_PATHS['cache_dir'], f"{cache_key}.png")
-    cache_index = {}
-
-    # Read cache index
-    if use_cache and os.path.exists(MODEL_PATHS['cache_index']):
-        with open(MODEL_PATHS['cache_index'], "r") as f:
-            cache_index = json.load(f)
-        for cached_key, cached_data in cache_index.items():
-            if GeoService.are_geometries_similar(geometry, cached_data["geometry"], threshold=0.8):
-                logger.info("Async cache hit based on geometry similarity.")
-                cached_file = cached_data["cache_path"]
-                if os.path.exists(cached_file):
-                    with open(cached_file, "rb") as f:
-                        return f.read()
-
-    # Sentinel Hub request payload
-    payload = {
-        "input": {
-            "bounds": {"geometry": geometry},
-            "data": [{
-                "type": "sentinel-2-l2a",
-                "dataFilter": {
-                    "timeRange": {
-                        "from": f"{start_date}T00:00:00Z",
-                        "to": f"{end_date}T23:59:59Z"
-                    }
-                }
-            }]
-        },
-        "output": {
-            "width": 512,
-            "height": 512,
-            "responses": [{
-                "identifier": "default",
-                "format": {"type": "image/png"}
-            }]
-        },
-        "evalscript": evalscript
-    }
-
-    headers = {
-        "Authorization": f"Bearer {SENTINEL_SERVICE.get_token()}",
-        "Content-Type": "application/json"
-    }
-
-    try:
-        async with session.post("https://services.sentinel-hub.com/api/v1/process", headers=headers, json=payload, timeout=30) as resp:
-            if resp.status == 200:
-                image_data = await resp.read()
-                if use_cache:
-                    os.makedirs(MODEL_PATHS['cache_dir'], exist_ok=True)
-                    with open(cache_path, "wb") as f:
-                        f.write(image_data)
-                    cache_index[cache_key] = {"geometry": geometry, "cache_path": cache_path}
-                    with open(MODEL_PATHS['cache_index'], "w") as f:
-                        json.dump(cache_index, f)
-                    logger.info("NDVI image saved to async cache.")
-                return image_data
-            else:
-                logger.warning(f"Async Sentinel error {resp.status}: {await resp.text()}")
-    except asyncio.TimeoutError:
-        logger.error("Request to Sentinel timed out.")
-    except Exception as e:
-        logger.error(f"Async error in NDVI fetch: {e}")
-    return None
 
 # ------------------ Utility: get NDVI statistics ------------------
 
-def get_statistics_data(geometry, start_date, end_date):
-    evalscript = """//VERSION=3
-    function setup() {
-      return {
-        input: ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12", "dataMask"],
-        output: [
-          { id: "B01", bands: 1, sampleType: "FLOAT32" },
-          { id: "B02", bands: 1, sampleType: "FLOAT32" },
-          { id: "B03", bands: 1, sampleType: "FLOAT32" },
-          { id: "B04", bands: 1, sampleType: "FLOAT32" },
-          { id: "B05", bands: 1, sampleType: "FLOAT32" },
-          { id: "B06", bands: 1, sampleType: "FLOAT32" },
-          { id: "B07", bands: 1, sampleType: "FLOAT32" },
-          { id: "B08", bands: 1, sampleType: "FLOAT32" },
-          { id: "B8A", bands: 1, sampleType: "FLOAT32" },
-          { id: "B09", bands: 1, sampleType: "FLOAT32" },
-          { id: "B11", bands: 1, sampleType: "FLOAT32" },
-          { id: "B12", bands: 1, sampleType: "FLOAT32" },
-          { id: "dataMask", bands: 1 }
-        ]
-      };
-    }
-    function evaluatePixel(sample) {
-      if (sample.dataMask === 0) {
-        return {
-          B01: [NaN], B02: [NaN], B03: [NaN], B04: [NaN], B05: [NaN], B06: [NaN], B07: [NaN],
-          B08: [NaN], B8A: [NaN], B09: [NaN], B11: [NaN], B12: [NaN], dataMask: [0]
-        };
-      }
-      return {
-        B01: [sample.B01], B02: [sample.B02], B03: [sample.B03], B04: [sample.B04],
-        B05: [sample.B05], B06: [sample.B06], B07: [sample.B07], B08: [sample.B08],
-        B8A: [sample.B8A], B09: [sample.B09], B11: [sample.B11], B12: [sample.B12],
-        dataMask: [1]
-      };
-    }"""
-
-    band_ids = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"]
-    stats = {band: {"statistics": ["min", "max", "mean"]} for band in band_ids}
-
-    payload = {
-        "input": {
-            "bounds": {"geometry": geometry},
-            "data": [{"type": "sentinel-2-l2a"}]
-        },
-        "aggregation": {
-            "timeRange": {
-                "from": f"{start_date}T00:00:00Z",
-                "to": f"{end_date}T23:59:59Z"
-            },
-            "aggregationInterval": {"of": "P7D"},
-            "width": 512,
-            "height": 512,
-            "evalscript": evalscript
-        },
-        "calculations": {"default": {"statistics": stats}}
-    }
-
-    headers = {
-        "Authorization": f"Bearer {SENTINEL_SERVICE.get_token()}",
-        "Content-Type": "application/json"
-    }
-
-    response = requests.post("https://services.sentinel-hub.com/api/v1/statistics", headers=headers, json=payload)
-    if response.status_code == 200:
-        return response.json().get("data", [])
-    raise Exception(f"Statistics error {response.status_code}: {response.text}")
+# def get_statistics_data(geometry, start_date, end_date):
+#     evalscript = """//VERSION=3
+#     function setup() {
+#       return {
+#         input: ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12", "dataMask"],
+#         output: [
+#           { id: "B01", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B02", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B03", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B04", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B05", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B06", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B07", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B08", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B8A", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B09", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B11", bands: 1, sampleType: "FLOAT32" },
+#           { id: "B12", bands: 1, sampleType: "FLOAT32" },
+#           { id: "dataMask", bands: 1 }
+#         ]
+#       };
+#     }
+#     function evaluatePixel(sample) {
+#       if (sample.dataMask === 0) {
+#         return {
+#           B01: [NaN], B02: [NaN], B03: [NaN], B04: [NaN], B05: [NaN], B06: [NaN], B07: [NaN],
+#           B08: [NaN], B8A: [NaN], B09: [NaN], B11: [NaN], B12: [NaN], dataMask: [0]
+#         };
+#       }
+#       return {
+#         B01: [sample.B01], B02: [sample.B02], B03: [sample.B03], B04: [sample.B04],
+#         B05: [sample.B05], B06: [sample.B06], B07: [sample.B07], B08: [sample.B08],
+#         B8A: [sample.B8A], B09: [sample.B09], B11: [sample.B11], B12: [sample.B12],
+#         dataMask: [1]
+#       };
+#     }"""
+#
+#     band_ids = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"]
+#     stats = {band: {"statistics": ["min", "max", "mean"]} for band in band_ids}
+#
+#     payload = {
+#         "input": {
+#             "bounds": {"geometry": geometry},
+#             "data": [{"type": "sentinel-2-l2a"}]
+#         },
+#         "aggregation": {
+#             "timeRange": {
+#                 "from": f"{start_date}T00:00:00Z",
+#                 "to": f"{end_date}T23:59:59Z"
+#             },
+#             "aggregationInterval": {"of": "P7D"},
+#             "width": 512,
+#             "height": 512,
+#             "evalscript": evalscript
+#         },
+#         "calculations": {"default": {"statistics": stats}}
+#     }
+#
+#     headers = {
+#         "Authorization": f"Bearer {SENTINEL_SERVICE.get_token()}",
+#         "Content-Type": "application/json"
+#     }
+#
+#     response = requests.post("https://services.sentinel-hub.com/api/v1/statistics", headers=headers, json=payload)
+#     if response.status_code == 200:
+#         return response.json().get("data", [])
+#     raise Exception(f"Statistics error {response.status_code}: {response.text}")
 
 # ------------------ Utility: process NDVI statistics into model input ------------------
 
 def get_statistics_for_model_input(geometry, start_date, end_date):
     try:
-        raw_stats = get_statistics_data(geometry, start_date, end_date)
+        raw_stats = StatisticsService.get_statistics_data(geometry, start_date, end_date)
         results = []
         for entry in raw_stats:
             interval = entry.get("interval", {})
@@ -382,7 +314,7 @@ def ndvi_monthly_summary(request):
             results = []
             async with aiohttp.ClientSession() as session:
                 responses = await asyncio.gather(*[
-                    get_ndvi_image_binary(session, g, s, e, script, use_cache=False)
+                    NDVIService.get_ndvi_image_binary(session, g, s, e, script, use_cache=False)
                     for g, s, e, script in month_tasks
                 ])
                 for i, image_blob in enumerate(responses):

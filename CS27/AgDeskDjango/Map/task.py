@@ -1,5 +1,5 @@
 from celery import shared_task
-from .views import get_ndvi_image_binary
+from .services.ndvi_service import NDVIService
 import logging
 import asyncio
 import aiohttp
@@ -13,7 +13,7 @@ def update_ndvi_cache(geometry, start_date, end_date, evalscript):
     """
     async def run():
         async with aiohttp.ClientSession() as session:
-            await get_ndvi_image_binary(
+            await NDVIService.get_ndvi_image_binary(
                 session=session,
                 geometry=geometry,
                 start_date=start_date,
