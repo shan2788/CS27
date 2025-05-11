@@ -212,6 +212,38 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 AUTH_USER_MODEL = "UserAuth.UserProfile"
 
+import os
+
+# Model paths
+MODEL_PATHS = {
+    'crop_model': os.path.join(BASE_DIR, "your_app", "crop_classifier_c_model.pkl"),
+    'crop_encoder': os.path.join(BASE_DIR, "your_app", "crop_label_c_encoder.pkl"),
+    'biomass_model': os.path.join(BASE_DIR, "your_app", "biomass_model.pkl"),
+    'scaler_X': os.path.join(BASE_DIR, "your_app", 'scaler_X.pkl'),
+    'scaler_y': os.path.join(BASE_DIR, "your_app", 'scaler_y.pkl'),
+    'cache_dir': os.path.join(BASE_DIR, "your_app", "cache"),
+    'cache_index': os.path.join(BASE_DIR, "your_app", "cache_index.json")
+}
+
+REPORT_PATH = os.path.join(MEDIA_ROOT, "report")
+
+NDVI_EVALSCRIPT = """//VERSION=3
+function setup() {
+  return { input: ["B04", "B08"], output: { bands: 4, sampleType: "UINT8" }};
+}
+function evaluatePixel(sample) {
+  let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
+  let r=0,g=0,b=0,a=255;
+  if (ndvi < -0.2) r=g=b=0;
+  else if (ndvi < 0) { r=165; g=42; b=42; }
+  else if (ndvi < 0.2) { r=255; g=255; b=0; }
+  else if (ndvi < 0.4) { r=0; g=255; b=0; }
+  else { r=0; g=128; b=0; }
+  if (sample.B08 === 0 && sample.B04 === 0) a = 0;
+  return [r, g, b, a];
+}"""
+
+
 # Avoiding the wonderful debug pages to view my error messages
 # ALLOWED_HOSTS = ['*']
 # DEBUG         = False

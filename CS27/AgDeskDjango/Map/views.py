@@ -1,22 +1,17 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.http import HttpResponse, JsonResponse
 from django.contrib.gis.geos import GEOSGeometry
-from django.core.files.base import ContentFile
-from django.template.loader import render_to_string
-from django.utils.dateparse import parse_date
 from django.conf import settings
 
-import os, json, requests, datetime, logging, hashlib, base64
-import matplotlib.pyplot as plt
-import numpy as np
-import asyncio, aiohttp
-from io import BytesIO
-from collections import defaultdict
+import os, json, logging
 
 from .models import NDVIRegion, NDVIReport, CarbonCredit
 from FarmAcc.models import FarmInfo
+
+from .services.history_service import HistoryService
 from .services.sentinel_service import SentinelService
 from .services.prediction_service import CropModelService, BiomassModelService
 from .services.pdf_service import PDFService
@@ -24,380 +19,72 @@ from .services.geo_service import GeoService
 from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
 from .services.ndvi_service import NDVIService
 from .services.statistics_service import StatisticsService
+from .services.report_service import ReportGenerator
+from .services.tree_recommendation_service import TreeRecommendationService
+from .utils.decorators import handle_view_errors
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATHS = {
-    'crop_model': os.path.join(BASE_DIR, "crop_classifier_c_model.pkl"),
-    'crop_encoder': os.path.join(BASE_DIR, "crop_label_c_encoder.pkl"),
-    'biomass_model': os.path.join(BASE_DIR, "biomass_model.pkl"),
-    'scaler_X': os.path.join(BASE_DIR, 'scaler_X.pkl'),
-    'scaler_y': os.path.join(BASE_DIR, 'scaler_y.pkl'),
-    'cache_dir': os.path.join(BASE_DIR, "cache"),
-    'cache_index': os.path.join(BASE_DIR, "cache_index.json")
-}
-REPORT_PATH = os.path.join(settings.MEDIA_ROOT, "report")
-
-NDVI_EVALSCRIPT = """//VERSION=3
-function setup() {
-  return { input: ["B04", "B08"], output: { bands: 4, sampleType: "UINT8" }};
-}
-function evaluatePixel(sample) {
-  let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
-  let r=0,g=0,b=0,a=255;
-  if (ndvi < -0.2) r=g=b=0;
-  else if (ndvi < 0) { r=165; g=42; b=42; }
-  else if (ndvi < 0.2) { r=255; g=255; b=0; }
-  else if (ndvi < 0.4) { r=0; g=255; b=0; }
-  else { r=0; g=128; b=0; }
-  if (sample.B08 === 0 && sample.B04 === 0) a = 0;
-  return [r, g, b, a];
-}"""
-
+MODEL_PATHS = settings.MODEL_PATHS
+REPORT_PATH = settings.REPORT_PATH
+NDVI_EVALSCRIPT = settings.NDVI_EVALSCRIPT
 SENTINEL_SERVICE = SentinelService()
+
+def extract_geometry_dates(request):
+    data = json.loads(request.body)
+    geometry = data.get("geometry")
+    start_date = data.get("start_date", "2025-02-23")
+    end_date = data.get("end_date", "2025-03-23")
+    return geometry, start_date, end_date
 
 @login_required(login_url="login")
 def map_view(request):
     return render(request, 'Map/map.html', {"sentinel_instance_id": SENTINEL_SERVICE.get_instance_id()})
 
-
-# ------------------ Utility: get NDVI statistics ------------------
-
-# def get_statistics_data(geometry, start_date, end_date):
-#     evalscript = """//VERSION=3
-#     function setup() {
-#       return {
-#         input: ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12", "dataMask"],
-#         output: [
-#           { id: "B01", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B02", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B03", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B04", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B05", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B06", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B07", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B08", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B8A", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B09", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B11", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B12", bands: 1, sampleType: "FLOAT32" },
-#           { id: "dataMask", bands: 1 }
-#         ]
-#       };
-#     }
-#     function evaluatePixel(sample) {
-#       if (sample.dataMask === 0) {
-#         return {
-#           B01: [NaN], B02: [NaN], B03: [NaN], B04: [NaN], B05: [NaN], B06: [NaN], B07: [NaN],
-#           B08: [NaN], B8A: [NaN], B09: [NaN], B11: [NaN], B12: [NaN], dataMask: [0]
-#         };
-#       }
-#       return {
-#         B01: [sample.B01], B02: [sample.B02], B03: [sample.B03], B04: [sample.B04],
-#         B05: [sample.B05], B06: [sample.B06], B07: [sample.B07], B08: [sample.B08],
-#         B8A: [sample.B8A], B09: [sample.B09], B11: [sample.B11], B12: [sample.B12],
-#         dataMask: [1]
-#       };
-#     }"""
-#
-#     band_ids = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"]
-#     stats = {band: {"statistics": ["min", "max", "mean"]} for band in band_ids}
-#
-#     payload = {
-#         "input": {
-#             "bounds": {"geometry": geometry},
-#             "data": [{"type": "sentinel-2-l2a"}]
-#         },
-#         "aggregation": {
-#             "timeRange": {
-#                 "from": f"{start_date}T00:00:00Z",
-#                 "to": f"{end_date}T23:59:59Z"
-#             },
-#             "aggregationInterval": {"of": "P7D"},
-#             "width": 512,
-#             "height": 512,
-#             "evalscript": evalscript
-#         },
-#         "calculations": {"default": {"statistics": stats}}
-#     }
-#
-#     headers = {
-#         "Authorization": f"Bearer {SENTINEL_SERVICE.get_token()}",
-#         "Content-Type": "application/json"
-#     }
-#
-#     response = requests.post("https://services.sentinel-hub.com/api/v1/statistics", headers=headers, json=payload)
-#     if response.status_code == 200:
-#         return response.json().get("data", [])
-#     raise Exception(f"Statistics error {response.status_code}: {response.text}")
-
-# ------------------ Utility: process NDVI statistics into model input ------------------
-
-# def get_statistics_for_model_input(geometry, start_date, end_date):
-#     try:
-#         raw_stats = StatisticsService.get_statistics_data(geometry, start_date, end_date)
-#         results = []
-#         for entry in raw_stats:
-#             interval = entry.get("interval", {})
-#             outputs = entry.get("outputs", {})
-#
-#             bands_mean = {}
-#             for band_name, band_data in outputs.items():
-#                 band_stats = band_data.get("bands", {}).get("B0", {}).get("stats", {})
-#                 mean_val = band_stats.get("mean")
-#                 bands_mean[band_name] = mean_val * 10000 if mean_val is not None else None
-#
-#             b08 = bands_mean.get("B08")
-#             b04 = bands_mean.get("B04")
-#             ndvi = (b08 - b04) / (b08 + b04) if b08 is not None and b04 is not None and (b08 + b04) != 0 else None
-#
-#             results.append({
-#                 "from": interval.get("from"),
-#                 "to": interval.get("to"),
-#                 "bands_mean": bands_mean,
-#                 "ndvi_mean": ndvi
-#             })
-#
-#         return results
-#
-#     except Exception as e:
-#         logger.error(f"Error processing statistics for model input: {e}")
-#         return []
-
-
-
-# ------------------ View: generate NDVI report ------------------
-
 @csrf_exempt
+@require_POST
+@handle_view_errors(logger)
 def generate_report(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        geometry_data = data.get("geometry")
-        start_date = data.get("start_date", "2025-02-23")
-        end_date = data.get("end_date", "2025-03-23")
-
-        if not geometry_data:
-            return JsonResponse({'error': 'Missing geometry data'}, status=400)
-
-        geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-
-        # Step 1: 统计数据与模型输入
-        formatted_data = StatisticsService.get_statistics_for_model_input(geometry_data, start_date, end_date)
-
-        # Step 2: 作物预测
-        crop_model = CropModelService(logger, model_path=MODEL_PATHS['crop_model'], encoder_path=MODEL_PATHS['crop_encoder'])
-        predicted_crop = crop_model.make_prediction(formatted_data)
-
-        # Step 3: 生物量预测与 CO2 转换
-        biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
-        predicted_biomass = biomass_model.make_prediction(formatted_data)
-
-        # Step 4: 报告生成与保存
-        buffer = PDFService.generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
-        filename = f"NDVI_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        file_path = os.path.join(REPORT_PATH, filename)
-        os.makedirs(REPORT_PATH, exist_ok=True)
-        with open(file_path, 'wb') as f:
-            f.write(buffer.getvalue())
-
-        # Step 5: 记录写入数据库
-        current_user = request.user
-        farm_id = getattr(current_user, "currentFarm_id", None)
-        farm = FarmInfo.objects.get(id=farm_id) if farm_id else None
-        NDVIReport.objects.create(
-            farm=farm,
-            start_date=start_date,
-            end_date=end_date,
-            file_path=f'report/{filename}',
-            geolocation=geo_obj
-        )
-
-        buffer.seek(0)
-        return HttpResponse(buffer, content_type='application/pdf')
-
-    except Exception as e:
-        logger.error(f"Error generating report: {e}")
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-# ------------------ View: tree recommendation & carbon forecast ------------------
+    geometry, start_date, end_date = extract_geometry_dates(request)
+    if not geometry:
+        return JsonResponse({'error': 'Missing geometry data'}, status=400)
+    generator = ReportGenerator(MODEL_PATHS, REPORT_PATH, logger)
+    pdf_buffer, _ = generator.generate(geometry, start_date, end_date, request.user)
+    return HttpResponse(pdf_buffer, content_type='application/pdf')
 
 @csrf_exempt
+@require_POST
+@handle_view_errors(logger)
 def tree_recommendation_view(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        geometry = data.get('geometry')
-        start_date = data.get('start_date', "2025-02-23")
-        end_date = data.get('end_date', "2025-03-23")
-
-        # 统计数据转换为模型输入
-        formatted_data = StatisticsService.get_statistics_for_model_input(geometry, start_date, end_date)
-        if not formatted_data:
-            return JsonResponse({'error': 'No NDVI stats available'}, status=400)
-
-        # 树种推荐与密度估计
-        species = make_tree_recommendation(formatted_data)
-        density = make_density_prediction(formatted_data)
-        carbon_list = fake_carbon_series(density)
-        years = [str(2025 + i) for i in range(len(carbon_list))]
-
-        # 绘制碳变化图表
-        plt.figure()
-        plt.plot(years, carbon_list, marker='o')
-        plt.title("Predicted Carbon Change")
-        plt.xlabel("Year")
-        plt.ylabel("Carbon Emission (ton/year)")
-        plt.tight_layout()
-        buffer = BytesIO()
-        plt.savefig(buffer, format='png')
-        buffer.seek(0)
-        chart_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-        buffer.close()
-
-        # 返回 HTML 片段供 HTMX 局部替换
-        html = render_to_string("Map/tree_result_fragment.html", {
-            "species": species,
-            "density": density,
-            "carbon": chart_base64,
-        })
-        return HttpResponse(html)
-
-    except Exception as e:
-        logger.error(f"Error in tree_recommendation_view: {e}")
-        return JsonResponse({'error': str(e)}, status=500)
-
-# ------------------ View: NDVI monthly summary ------------------
+    geometry, start_date, end_date = extract_geometry_dates(request)
+    service = TreeRecommendationService()
+    html = service.generate(geometry, start_date, end_date)
+    return HttpResponse(html)
 
 @csrf_exempt
+@require_POST
+@handle_view_errors(logger)
 def ndvi_monthly_summary(request):
-    if request.method != "POST":
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        geometry = data['geometry']
-        start_date = data['start_date']
-        end_date = data['end_date']
-        weekly_stats = StatisticsService.get_statistics_for_model_input(geometry, start_date, end_date)
-        if not weekly_stats:
-            return JsonResponse({'error': 'No weekly data found'}, status=404)
-        # 聚合到每月
-        monthly_data = defaultdict(list)
-        for entry in weekly_stats:
-            date_obj = datetime.datetime.fromisoformat(entry["from"][:10])
-            month_key = date_obj.strftime("%Y-%m")
-            monthly_data[month_key].append(entry)
-        month_meta = []
-        month_tasks = []
-        for month, entries in monthly_data.items():
-            ndvi_vals = [e["ndvi_mean"] for e in entries if e["ndvi_mean"] is not None]
-            if not ndvi_vals:
-                continue
-            mean_ndvi = round(np.mean(ndvi_vals), 3)
-            max_ndvi = round(np.max(ndvi_vals), 3)
-            min_ndvi = round(np.min(ndvi_vals), 3)
-            mid_entry = entries[len(entries) // 2]
-            mid_from = mid_entry["from"][:10]
-            mid_to = mid_entry["to"][:10]
-
-            month_meta.append((month, mean_ndvi, max_ndvi, min_ndvi))
-            month_tasks.append((geometry, mid_from, mid_to, NDVI_EVALSCRIPT))
-
-        async def fetch_all_images():
-            results = []
-            async with aiohttp.ClientSession() as session:
-                responses = await asyncio.gather(*[
-                    NDVIService.get_ndvi_image_binary(session, g, s, e, script, use_cache=False)
-                    for g, s, e, script in month_tasks
-                ])
-                for i, image_blob in enumerate(responses):
-                    month, mean, maxv, minv = month_meta[i]
-                    if image_blob is None:
-                        logger.warning(f"No image for {month}, skipping.")
-                        continue
-                    image_base64 = base64.b64encode(image_blob).decode("utf-8")
-                    results.append({
-                        "month": month,
-                        "ndvi_mean": mean,
-                        "ndvi_max": maxv,
-                        "ndvi_min": minv,
-                        "image_base64": image_base64,
-                    })
-            return results
-
-        result = asyncio.run(fetch_all_images())
-        return JsonResponse(result, safe=False)
-
-    except Exception as e:
-        logger.error(f"Monthly NDVI summary error: {e}")
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-# ------------------ View: Carbon Credit Report ------------------
+    geometry, start_date, end_date = extract_geometry_dates(request)
+    result = NDVIService.generate_monthly_summary(
+        geometry=geometry,
+        start_date=start_date,
+        end_date=end_date,
+        eval_script=NDVI_EVALSCRIPT,
+        logger=logger
+    )
+    return JsonResponse(result, safe=False)
 
 @csrf_exempt
+@require_POST
+@handle_view_errors(logger)
 def carbon_credit(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        geometry_data = data.get("geometry")
-        start_date = data.get("start_date", "2025-02-23")
-        end_date = data.get("end_date", "2025-03-23")
-
-        if not geometry_data:
-            return JsonResponse({'error': 'Missing geometry data'}, status=400)
-
-        geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-
-        # Step 1: NDVI stats → model input
-        formatted_data = StatisticsService.get_statistics_for_model_input(geometry_data, start_date, end_date)
-
-        # Step 2: Predict biomass & CO2
-        biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
-        predicted_biomass = biomass_model.make_prediction(formatted_data)
-        predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
-
-        # Step 3: Calculate area (GeoJSON assumed to be polygon)
-        estimated_area_square = GeoService.calculate_area_square(geometry_data['coordinates'][0])
-
-        # Step 4: Generate PDF report
-        buffer = PDFService.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
-        filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        os.makedirs(REPORT_PATH, exist_ok=True)
-        file_path = os.path.join(REPORT_PATH, filename)
-        with open(file_path, 'wb') as f:
-            f.write(buffer.getvalue())
-
-        # Step 5: Write to database
-        current_user = request.user
-        farm_id = getattr(current_user, "currentFarm_id", None)
-        farm = FarmInfo.objects.get(id=farm_id) if farm_id else None
-
-        CarbonCredit.objects.create(
-            farm=farm,
-            start_date=start_date,
-            end_date=end_date,
-            file_path=f'report/{filename}',
-            geolocation=geo_obj
-        )
-
-        buffer.seek(0)
-        return HttpResponse(buffer, content_type='application/pdf')
-
-    except Exception as e:
-        logger.error(f"Error generating carbon credit report: {e}")
-        return JsonResponse({'error': str(e)}, status=500)
-
-# ------------------ View: History for NDVI Region / Report / Carbon ------------------
+    geometry_data, start_date, end_date = extract_geometry_dates(request)
+    if not geometry_data:
+        return JsonResponse({'error': 'Missing geometry data'}, status=400)
+    service = ReportGenerator(MODEL_PATHS, REPORT_PATH, logger)
+    pdf_buffer = service.generate_carbon_report(geometry_data, start_date, end_date, request.user)
+    return HttpResponse(pdf_buffer, content_type='application/pdf')
 
 @login_required
 def region_history(request, farm_id):
@@ -411,28 +98,10 @@ def report_history(request, farm_id):
 def carbon_credit_history(request, farm_id):
     return _history_view(request, farm_id, CarbonCredit, 'Map/carbon_credit_history.html', 'Map/carbon_credit_history_fragment.html')
 
-
+@handle_view_errors(logger)
 def _history_view(request, farm_id, model_class, full_template, fragment_template):
     farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
-    queryset = model_class.objects.filter(farm=farm).order_by('-created_at')
-
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            start_date = data.get('start_date')
-            end_date = data.get('end_date')
-
-            if start_date:
-                queryset = queryset.filter(start_date__gte=parse_date(start_date))
-            if end_date:
-                queryset = queryset.filter(end_date__lte=parse_date(end_date))
-        except Exception as e:
-            logger.error(f"Error parsing request body: {e}")
-            return JsonResponse({'error': 'Invalid request'}, status=400)
-
+    queryset = HistoryService.get_filtered_queryset(request, model_class, farm, logger)
     context = {'farm': farm, 'reports': queryset}
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return render(request, fragment_template, context)
-    return render(request, full_template, context)
-
-
+    template = fragment_template if request.headers.get('x-requested-with') == 'XMLHttpRequest' else full_template
+    return render(request, template, context)

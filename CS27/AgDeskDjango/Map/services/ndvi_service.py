@@ -1,9 +1,14 @@
 # ndvi_service.py
-
+import base64
 import os, json, hashlib, logging, asyncio, aiohttp, datetime
+from collections import defaultdict
+
+import numpy as np
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
+
+from .statistics_service import StatisticsService
 from .sentinel_service import SentinelService
 from .geo_service import GeoService
 from ..models import NDVIRegion
@@ -204,71 +209,51 @@ class NDVIService:
         return None
 
     @staticmethod
-    async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscript, use_cache=True):
-        cache_key = hashlib.md5(f"{geometry}_{start_date}_{end_date}".encode()).hexdigest()
-        cache_path = os.path.join(MODEL_PATHS['cache_dir'], f"{cache_key}.png")
-        cache_index = {}
+    def generate_monthly_summary(geometry, start_date, end_date, eval_script, logger):
+        weekly_stats = StatisticsService.get_statistics_for_model_input(geometry, start_date, end_date)
+        if not weekly_stats:
+            raise ValueError("No weekly data found")
 
-        # Read cache index
-        if use_cache and os.path.exists(MODEL_PATHS['cache_index']):
-            with open(MODEL_PATHS['cache_index'], "r") as f:
-                cache_index = json.load(f)
-            for cached_key, cached_data in cache_index.items():
-                if GeoService.are_geometries_similar(geometry, cached_data["geometry"], threshold=0.8):
-                    logger.info("Async cache hit based on geometry similarity.")
-                    cached_file = cached_data["cache_path"]
-                    if os.path.exists(cached_file):
-                        with open(cached_file, "rb") as f:
-                            return f.read()
+        monthly_data = defaultdict(list)
+        for entry in weekly_stats:
+            date_obj = datetime.datetime.fromisoformat(entry["from"][:10])
+            month_key = date_obj.strftime("%Y-%m")
+            monthly_data[month_key].append(entry)
 
-        # Sentinel Hub request payload
-        payload = {
-            "input": {
-                "bounds": {"geometry": geometry},
-                "data": [{
-                    "type": "sentinel-2-l2a",
-                    "dataFilter": {
-                        "timeRange": {
-                            "from": f"{start_date}T00:00:00Z",
-                            "to": f"{end_date}T23:59:59Z"
-                        }
-                    }
-                }]
-            },
-            "output": {
-                "width": 512,
-                "height": 512,
-                "responses": [{
-                    "identifier": "default",
-                    "format": {"type": "image/png"}
-                }]
-            },
-            "evalscript": evalscript
-        }
+        meta_and_tasks = [
+            (
+                month,
+                round(np.mean([e["ndvi_mean"] for e in entries if e["ndvi_mean"] is not None]), 3),
+                round(np.max([e["ndvi_mean"] for e in entries if e["ndvi_mean"] is not None]), 3),
+                round(np.min([e["ndvi_mean"] for e in entries if e["ndvi_mean"] is not None]), 3),
+                entries[len(entries) // 2]["from"][:10],
+                entries[len(entries) // 2]["to"][:10]
+            )
+            for month, entries in monthly_data.items()
+            if any(e["ndvi_mean"] is not None for e in entries)
+        ]
 
-        headers = {
-            "Authorization": f"Bearer {SENTINEL_SERVICE.get_token()}",
-            "Content-Type": "application/json"
-        }
+        async def fetch_images():
+            async with aiohttp.ClientSession() as session:
+                responses = await asyncio.gather(*[
+                    NDVIService.get_ndvi_image_binary(session, geometry, s, e, eval_script, use_cache=False)
+                    for (_, _, _, _, s, e) in meta_and_tasks
+                ])
 
-        try:
-            async with session.post("https://services.sentinel-hub.com/api/v1/process", headers=headers, json=payload,
-                                    timeout=30) as resp:
-                if resp.status == 200:
-                    image_data = await resp.read()
-                    if use_cache:
-                        os.makedirs(MODEL_PATHS['cache_dir'], exist_ok=True)
-                        with open(cache_path, "wb") as f:
-                            f.write(image_data)
-                        cache_index[cache_key] = {"geometry": geometry, "cache_path": cache_path}
-                        with open(MODEL_PATHS['cache_index'], "w") as f:
-                            json.dump(cache_index, f)
-                        logger.info("NDVI image saved to async cache.")
-                    return image_data
-                else:
-                    logger.warning(f"Async Sentinel error {resp.status}: {await resp.text()}")
-        except asyncio.TimeoutError:
-            logger.error("Request to Sentinel timed out.")
-        except Exception as e:
-            logger.error(f"Async error in NDVI fetch: {e}")
-        return None
+            results = []
+            for i, image_blob in enumerate(responses):
+                month, mean, maxv, minv, _, _ = meta_and_tasks[i]
+                if image_blob is None:
+                    logger.warning(f"No image for {month}, skipping.")
+                    continue
+                image_base64 = base64.b64encode(image_blob).decode("utf-8")
+                results.append({
+                    "month": month,
+                    "ndvi_mean": mean,
+                    "ndvi_max": maxv,
+                    "ndvi_min": minv,
+                    "image_base64": image_base64,
+                })
+            return results
+
+        return asyncio.run(fetch_images())
