@@ -397,59 +397,6 @@ def carbon_credit(request):
         logger.error(f"Error generating carbon credit report: {e}")
         return JsonResponse({'error': str(e)}, status=500)
 
-...
-
-# ------------------ View: Carbon Credit Report ------------------
-
-@csrf_exempt
-def carbon_credit(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        geometry_data = data.get("geometry")
-        start_date = data.get("start_date", "2025-02-23")
-        end_date = data.get("end_date", "2025-03-23")
-
-        if not geometry_data:
-            return JsonResponse({'error': 'Missing geometry data'}, status=400)
-
-        geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-        formatted_data = StatisticsService.get_statistics_for_model_input(geometry_data, start_date, end_date)
-
-        biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
-        predicted_biomass = biomass_model.make_prediction(formatted_data)
-        predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
-
-        estimated_area_square = GeoService.calculate_area_square(geometry_data['coordinates'][0])
-
-        buffer = PDFService.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
-        filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        os.makedirs(REPORT_PATH, exist_ok=True)
-        file_path = os.path.join(REPORT_PATH, filename)
-        with open(file_path, 'wb') as f:
-            f.write(buffer.getvalue())
-
-        current_user = request.user
-        farm_id = getattr(current_user, "currentFarm_id", None)
-        farm = FarmInfo.objects.get(id=farm_id) if farm_id else None
-
-        CarbonCredit.objects.create(
-            farm=farm,
-            start_date=start_date,
-            end_date=end_date,
-            file_path=f'report/{filename}',
-            geolocation=geo_obj
-        )
-
-        buffer.seek(0)
-        return HttpResponse(buffer, content_type='application/pdf')
-
-    except Exception as e:
-        logger.error(f"Error generating carbon credit report: {e}")
-        return JsonResponse({'error': str(e)}, status=500)
-
 # ------------------ View: History for NDVI Region / Report / Carbon ------------------
 
 @login_required
