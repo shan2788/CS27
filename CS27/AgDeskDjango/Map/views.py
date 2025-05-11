@@ -61,77 +61,6 @@ SENTINEL_SERVICE = SentinelService()
 def map_view(request):
     return render(request, 'Map/map.html', {"sentinel_instance_id": SENTINEL_SERVICE.get_instance_id()})
 
-
-# ------------------ Utility: get NDVI statistics ------------------
-
-# def get_statistics_data(geometry, start_date, end_date):
-#     evalscript = """//VERSION=3
-#     function setup() {
-#       return {
-#         input: ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12", "dataMask"],
-#         output: [
-#           { id: "B01", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B02", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B03", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B04", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B05", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B06", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B07", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B08", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B8A", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B09", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B11", bands: 1, sampleType: "FLOAT32" },
-#           { id: "B12", bands: 1, sampleType: "FLOAT32" },
-#           { id: "dataMask", bands: 1 }
-#         ]
-#       };
-#     }
-#     function evaluatePixel(sample) {
-#       if (sample.dataMask === 0) {
-#         return {
-#           B01: [NaN], B02: [NaN], B03: [NaN], B04: [NaN], B05: [NaN], B06: [NaN], B07: [NaN],
-#           B08: [NaN], B8A: [NaN], B09: [NaN], B11: [NaN], B12: [NaN], dataMask: [0]
-#         };
-#       }
-#       return {
-#         B01: [sample.B01], B02: [sample.B02], B03: [sample.B03], B04: [sample.B04],
-#         B05: [sample.B05], B06: [sample.B06], B07: [sample.B07], B08: [sample.B08],
-#         B8A: [sample.B8A], B09: [sample.B09], B11: [sample.B11], B12: [sample.B12],
-#         dataMask: [1]
-#       };
-#     }"""
-#
-#     band_ids = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"]
-#     stats = {band: {"statistics": ["min", "max", "mean"]} for band in band_ids}
-#
-#     payload = {
-#         "input": {
-#             "bounds": {"geometry": geometry},
-#             "data": [{"type": "sentinel-2-l2a"}]
-#         },
-#         "aggregation": {
-#             "timeRange": {
-#                 "from": f"{start_date}T00:00:00Z",
-#                 "to": f"{end_date}T23:59:59Z"
-#             },
-#             "aggregationInterval": {"of": "P7D"},
-#             "width": 512,
-#             "height": 512,
-#             "evalscript": evalscript
-#         },
-#         "calculations": {"default": {"statistics": stats}}
-#     }
-#
-#     headers = {
-#         "Authorization": f"Bearer {SENTINEL_SERVICE.get_token()}",
-#         "Content-Type": "application/json"
-#     }
-#
-#     response = requests.post("https://services.sentinel-hub.com/api/v1/statistics", headers=headers, json=payload)
-#     if response.status_code == 200:
-#         return response.json().get("data", [])
-#     raise Exception(f"Statistics error {response.status_code}: {response.text}")
-
 # ------------------ Utility: process NDVI statistics into model input ------------------
 
 def get_statistics_for_model_input(geometry, start_date, end_date):
@@ -378,59 +307,6 @@ def carbon_credit(request):
             f.write(buffer.getvalue())
 
         # Step 5: Write to database
-        current_user = request.user
-        farm_id = getattr(current_user, "currentFarm_id", None)
-        farm = FarmInfo.objects.get(id=farm_id) if farm_id else None
-
-        CarbonCredit.objects.create(
-            farm=farm,
-            start_date=start_date,
-            end_date=end_date,
-            file_path=f'report/{filename}',
-            geolocation=geo_obj
-        )
-
-        buffer.seek(0)
-        return HttpResponse(buffer, content_type='application/pdf')
-
-    except Exception as e:
-        logger.error(f"Error generating carbon credit report: {e}")
-        return JsonResponse({'error': str(e)}, status=500)
-
-...
-
-# ------------------ View: Carbon Credit Report ------------------
-
-@csrf_exempt
-def carbon_credit(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        geometry_data = data.get("geometry")
-        start_date = data.get("start_date", "2025-02-23")
-        end_date = data.get("end_date", "2025-03-23")
-
-        if not geometry_data:
-            return JsonResponse({'error': 'Missing geometry data'}, status=400)
-
-        geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
-        formatted_data = get_statistics_for_model_input(geometry_data, start_date, end_date)
-
-        biomass_model = BiomassModelService(logger, model_path=MODEL_PATHS['biomass_model'], scaler_X_path=MODEL_PATHS['scaler_X'], scaler_y_path=MODEL_PATHS['scaler_y'])
-        predicted_biomass = biomass_model.make_prediction(formatted_data)
-        predicted_CO2 = biomass_model.convert_tree_biomass_array_to_CO2(predicted_biomass)
-
-        estimated_area_square = GeoService.calculate_area_square(geometry_data['coordinates'][0])
-
-        buffer = PDFService.generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data)
-        filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        os.makedirs(REPORT_PATH, exist_ok=True)
-        file_path = os.path.join(REPORT_PATH, filename)
-        with open(file_path, 'wb') as f:
-            f.write(buffer.getvalue())
-
         current_user = request.user
         farm_id = getattr(current_user, "currentFarm_id", None)
         farm = FarmInfo.objects.get(id=farm_id) if farm_id else None
