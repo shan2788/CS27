@@ -34,21 +34,25 @@ class CropModelService(ModelService):
                     for i in [1,2,3,4,5,6,7,8,'8A',9,11,12]
                 ])
 
-            # Convert to a NumPy array for model input
-            band_values = np.array(band_values)
-            # Make predictions using the model
-            predictions_proba = self.model.predict_proba(band_values)
+            result_text = ""
+            for one_value in band_values:
+                # Convert to a NumPy array for model input
+                band_value = np.array(one_value).reshape(1, -1)
+                # Make predictions using the model
+                predictions_proba = self.model.predict_proba(band_value)[0]
 
-            top3_idx = np.argsort(predictions_proba, axis=1)[:, -3:][:, ::-1]
-            top3_labels = [self.encoder.inverse_transform(idx) for idx in top3_idx]
-            result = []
-            for labels, probs in zip(top3_labels, predictions_proba):
-                top3_probs = probs[np.argsort(probs)[-3:][::-1]]
-                result.append([(label, round(float(prob), 4)) for label, prob in zip(labels, top3_probs)])
+                top3_indices = np.argsort(predictions_proba)[-3:][::-1]
+                top3_raw_probs = np.array([predictions_proba[i] for i in top3_indices])
 
-            top3_text = '; '.join([', '.join([f"{label} ({prob})" for label, prob in sample]) for sample in result])
+                exp_scores = np.exp(top3_raw_probs)
+                softmax_probs = exp_scores / np.sum(exp_scores)
+
+                top3 = [(self.encoder.classes_[i], f"{float(softmax_probs[idx])*100:.1f}%") 
+                        for idx, i in enumerate(top3_indices)]
+                top3_text = f"Top 3 predictions: {top3}"
+                result_text += top3_text + "\n"
             
-            return top3_text
+            return result_text
 
         except Exception as e:
             self.logger.error(f"Error in making predictions in crop species: {e}")
