@@ -41,7 +41,7 @@ class ReportGenerator:
             formatted_data = StatisticsService.get_statistics_for_model_input(geometry_data, start_date, end_date)
 
             # Step 2: 作物预测
-            crop_model = CropModelService(self.logger, self.model_paths['crop_model'], self.model_paths['crop_encoder'])
+            crop_model = CropModelService(self.logger, model_path=self.model_paths['crop_model'], encoder_path=self.model_paths['crop_encoder'])
             predicted_crop = crop_model.make_prediction(formatted_data)
 
             # Step 3: 生物量预测

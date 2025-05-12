@@ -216,13 +216,13 @@ import os
 
 # Model paths
 MODEL_PATHS = {
-    'crop_model': os.path.join(BASE_DIR, "your_app", "crop_classifier_c_model.pkl"),
-    'crop_encoder': os.path.join(BASE_DIR, "your_app", "crop_label_c_encoder.pkl"),
-    'biomass_model': os.path.join(BASE_DIR, "your_app", "biomass_model.pkl"),
-    'scaler_X': os.path.join(BASE_DIR, "your_app", 'scaler_X.pkl'),
-    'scaler_y': os.path.join(BASE_DIR, "your_app", 'scaler_y.pkl'),
-    'cache_dir': os.path.join(BASE_DIR, "your_app", "cache"),
-    'cache_index': os.path.join(BASE_DIR, "your_app", "cache_index.json")
+    'crop_model': os.path.join(BASE_DIR, "Map", "crop_classifier_c_model.pkl"),
+    'crop_encoder': os.path.join(BASE_DIR, "Map", "crop_label_c_encoder.pkl"),
+    'biomass_model': os.path.join(BASE_DIR, "Map", "biomass_model.pkl"),
+    'scaler_X': os.path.join(BASE_DIR, "Map", 'scaler_X.pkl'),
+    'scaler_y': os.path.join(BASE_DIR, "Map", 'scaler_y.pkl'),
+    'cache_dir': os.path.join(BASE_DIR, "Map", "cache"),
+    'cache_index': os.path.join(BASE_DIR, "Map", "cache_index.json")
 }
 
 REPORT_PATH = os.path.join(MEDIA_ROOT, "report")
