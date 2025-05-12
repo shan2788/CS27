@@ -4,13 +4,12 @@ import os
 import datetime
 import json
 from django.contrib.gis.geos import GEOSGeometry
-from io import BytesIO
 
 from .statistics_service import StatisticsService
 from .prediction_service import CropModelService, BiomassModelService
 from .pdf_service import PDFService
 from .geo_service import GeoService
-from Map.models import NDVIReport  # 或者你定义的 report model
+from Map.models import NDVIReport
 from FarmAcc.models import FarmInfo
 
 from Map.models import CarbonCredit

@@ -1,10 +1,5 @@
-import json
 import logging
 import requests
-from django.contrib.gis.geos import GEOSGeometry
-import datetime
-import base64
-
 from .sentinel_service import SentinelService
 
 SENTINEL_SERVICE = SentinelService()

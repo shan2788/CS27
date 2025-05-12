@@ -2,8 +2,6 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.pdfmetrics import stringWidth
 import numpy as np
-from shapely.geometry import Polygon
-import geopandas as gpd
 
 class PDFService:
     def __init__(self):
