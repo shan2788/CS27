@@ -34,7 +34,7 @@ class PDFService:
         return y
 
     @staticmethod
-    def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data):
+    def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data, farm_details):
         """
         Generate a beautiful PDF report for NDVI data using ReportLab Platypus.
         """
@@ -53,7 +53,15 @@ class PDFService:
         story.append(Paragraph("NDVI Report", styles["Title"]))
         story.append(Spacer(1, 12))
 
+        # Farm Details Section
+        story.append(Paragraph("<b>Farm Information</b>", styles["SectionTitle"]))
+        story.append(Paragraph(f"<b>Farm Name:</b> {farm_details.get('farmName', 'N/A')}", styles["NormalText"]))
+        story.append(Paragraph(f"<b>Farm Location:</b> {farm_details.get('farmLocation', 'N/A')}", styles["NormalText"]))
+        story.append(Paragraph(f"<b>Farm ID:</b> {farm_details.get('farmId', 'N/A')}", styles["NormalText"]))
+        story.append(Spacer(1, 12))
+
         # Metadata
+        story.append(Paragraph("<b>Report Period</b>", styles["SectionTitle"]))
         story.append(Paragraph(f"<b>Start Date:</b> {start_date}", styles["NormalText"]))
         story.append(Paragraph(f"<b>End Date:</b> {end_date}", styles["NormalText"]))
         story.append(Spacer(1, 12))
@@ -105,7 +113,7 @@ class PDFService:
         return buffer
 
     @staticmethod
-    def generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data):
+    def generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data, farm_details):
         """
         Generate a beautiful PDF report for carbon credit data using ReportLab Platypus.
         """
@@ -124,6 +132,13 @@ class PDFService:
         story.append(Paragraph("Carbon Credit Report", styles["Title"]))
         story.append(Spacer(1, 12))
 
+        # Farm Details Section
+        story.append(Paragraph("<b>Farm Information</b>", styles["SectionTitle"]))
+        story.append(Paragraph(f"<b>Farm Name:</b> {farm_details.get('farmName', 'N/A')}", styles["NormalText"]))
+        story.append(Paragraph(f"<b>Farm Location:</b> {farm_details.get('farmLocation', 'N/A')}", styles["NormalText"]))
+        story.append(Paragraph(f"<b>Farm ID:</b> {farm_details.get('farmId', 'N/A')}", styles["NormalText"]))
+        story.append(Spacer(1, 12))
+
         # Metadata
         story.append(Paragraph(f"<b>Start Date:</b> {start_date}", styles["NormalText"]))
         story.append(Paragraph(f"<b>End Date:</b> {end_date}", styles["NormalText"]))
@@ -131,13 +146,13 @@ class PDFService:
 
         # Geometry info
         coords_text = str(geometry_data["coordinates"][0])[:500] + "..."
-        story.append(Paragraph("<b>Farm Geometry Coordinates (truncated):</b>", styles["SectionTitle"]))
+        story.append(Paragraph("<b>Farm Geometry Coordinates:</b>", styles["SectionTitle"]))
         story.append(Paragraph(coords_text, styles["NormalText"]))
         story.append(Spacer(1, 12))
 
         # Carbon and area stats
         avg_co2 = PDFService.calculate_positive_average(np.array(predicted_CO2))
-        story.append(Paragraph(f"<b>Predicted Avg Carbon Stock (kg):</b> {avg_co2:.2f}", styles["NormalText"]))
+        story.append(Paragraph(f"<b>Predicted Avg Carbon Credit:</b> {avg_co2:.2f}", styles["NormalText"]))
         story.append(Paragraph(f"<b>Estimated Area:</b> {estimated_area_square:.2f} km² / {estimated_area_square*100:.2f} ha", styles["NormalText"]))
         story.append(Spacer(1, 12))
 

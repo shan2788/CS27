@@ -137,10 +137,6 @@
             </ul>
           </div>
         </div>
-        
-<!--        {% comment %} <button id="generate-report-btn" class="btn btn-info">📄 Generate Report</button> {% endcomment %}-->
-<!--        {% comment %} <button id="view-history-btn" class="btn btn-info">📜 View Region History</button>-->
-<!--        <a href="{% url 'report_history' request.user.currentFarm.id %}" class="btn btn-info">📜 View Report History</a> {% endcomment %}-->
         <br>
         <div>
         </p>
@@ -176,7 +172,12 @@
 
     <div id="monthly-ndvi-container" class="row mt-4"></div>
 
-
+    <div id="farm-details" 
+        data-farm-id="{{ request.user.currentFarm.id }}"
+        data-farm-name="{{ request.user.currentFarm.farm_name }}"
+        data-farm-location="{{ request.user.currentFarm.farm_street }}, {{ request.user.currentFarm.farm_state }} {{ request.user.currentFarm.farm_postcode }}"
+        style="display: none;">
+    </div>
 
 
 
@@ -355,6 +356,14 @@ function debounceSubmitPolygon() {
 
     showLoading('Generating NDVI Report...');
 
+    // Get farm details
+    const farmDetails = document.getElementById('farm-details');
+    const farmData = {
+        farmId: farmDetails.dataset.farmId,
+        farmName: farmDetails.dataset.farmName,
+        farmLocation: farmDetails.dataset.farmLocation
+    };
+
     const geojson = drawnPolygon.toGeoJSON();
     const startDate = document.getElementById("start-date").value;
     const endDate = document.getElementById("end-date").value;
@@ -368,7 +377,8 @@ function debounceSubmitPolygon() {
         body: JSON.stringify({
             geometry: geojson.geometry,
             start_date: startDate,
-            end_date: endDate
+            end_date: endDate,
+            farm_details: farmData
         })
     })
     .then(res => {
@@ -395,6 +405,14 @@ function debounceSubmitPolygon() {
 
     showLoading('Generating Carbon Credit Report...');
 
+    // Get farm details
+    const farmDetails = document.getElementById('farm-details');
+    const farmData = {
+        farmId: farmDetails.dataset.farmId,
+        farmName: farmDetails.dataset.farmName,
+        farmLocation: farmDetails.dataset.farmLocation
+    };
+
     const geojson = drawnPolygon.toGeoJSON();
     const startDate = document.getElementById("start-date").value;
     const endDate = document.getElementById("end-date").value;
@@ -408,7 +426,8 @@ function debounceSubmitPolygon() {
         body: JSON.stringify({
             geometry: geojson.geometry,
             start_date: startDate,
-            end_date: endDate
+            end_date: endDate,
+            farm_details: farmData
         })
     })
     .then(res => {

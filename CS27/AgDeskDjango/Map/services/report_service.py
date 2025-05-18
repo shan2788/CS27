@@ -32,7 +32,7 @@ class ReportGenerator:
         self.logger = logger
         self._initialized = True
 
-    def generate(self, geometry_data, start_date, end_date, user):
+    def generate(self, geometry_data, start_date, end_date, farm_details, user):
         try:
             geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
 
@@ -53,7 +53,7 @@ class ReportGenerator:
             predicted_biomass = biomass_model.make_prediction(formatted_data)
 
             # Step 4: 报告生成与保存
-            buffer = PDFService.generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data)
+            buffer = PDFService.generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data, farm_details)
             filename = f"NDVI_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
             os.makedirs(self.report_path, exist_ok=True)
             file_path = os.path.join(self.report_path, filename)
@@ -81,7 +81,7 @@ class ReportGenerator:
         farm_id = getattr(user, "currentFarm_id", None)
         return FarmInfo.objects.get(id=farm_id) if farm_id else None
 
-    def generate_carbon_report(self, geometry_data, start_date, end_date, user):
+    def generate_carbon_report(self, geometry_data, start_date, end_date, farm_details, user):
         geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
 
         formatted_data = StatisticsService.get_statistics_for_model_input(
@@ -101,7 +101,7 @@ class ReportGenerator:
 
         buffer = PDFService.generate_credit_report(
             start_date, end_date, estimated_area_square,
-            geometry_data, predicted_CO2, formatted_data
+            geometry_data, predicted_CO2, formatted_data, farm_details
         )
 
         filename = f"Carbon_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
