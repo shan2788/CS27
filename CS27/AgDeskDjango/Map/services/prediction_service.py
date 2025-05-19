@@ -127,25 +127,25 @@ class BiomassModelService(ModelService):
 
     def convert_tree_biomass_array_to_CO2(self, tree_biomass_array, carbon_content_percentage=50):
         """
-        Convert an array of tree biomass values to equivalent CO2 emissions.
-        :param tree_biomass_array: Array of tree biomass values (in kilograms)
+        Convert an array of tree biomass values to equivalent CO2 emissions credit.
+        :param tree_biomass_array: Array of tree biomass values (in tons)
         :param carbon_content_percentage: Percentage of biomass that is carbon (default: 50% for trees)
-        :return: Array of CO2 emissions (in kilograms)
+        :return: Array of CO2 emissions credit (in tons)
         """
         # Constants
         molar_mass_C = 12.01  # g/mol (Carbon)
         molar_mass_CO2 = 44.01  # g/mol (Carbon Dioxide)
 
-        # Convert tree biomass array to grams
-        tree_biomass_array_grams = np.array(tree_biomass_array) * 1000  # kilograms to grams
+        # Convert tree biomass array to kilograms
+        tree_biomass_array_kilograms = np.array(tree_biomass_array) * 1000  # tons to kilograms
 
         # Calculate carbon mass in the tree biomass array
-        carbon_mass_array = tree_biomass_array_grams * (carbon_content_percentage / 100)
+        carbon_mass_array = tree_biomass_array_kilograms * (carbon_content_percentage / 100)
 
-        # Convert carbon mass to CO2 mass (in grams)
-        CO2_mass_array_grams = carbon_mass_array * (molar_mass_CO2 / molar_mass_C)
+        # Convert carbon mass to CO2 mass (in kilograms)
+        CO2_mass_array_kilograms = carbon_mass_array * (molar_mass_CO2 / molar_mass_C)
 
-        # Convert CO2 mass back to kilograms
-        CO2_mass_array_kg = CO2_mass_array_grams / 1000  # grams to kilograms
+        # Convert CO2 mass back to tons
+        CO2_mass_array_tons = CO2_mass_array_kilograms / 1000  # kilograms to tons
         
-        return CO2_mass_array_kg
+        return CO2_mass_array_tons
