@@ -42,16 +42,8 @@
         <button id="start-draw" class="btn btn-primary">Start Drawing</button>
         <button id="end-draw" class="btn btn-secondary">Cancel Drawing</button>
         <button class="btn btn-success" onclick="debounceSubmitPolygon()">Get NDVI</button>
-        <button
-          class="btn btn-success"
-          hx-post="{% url 'tree-recommendation' %}"
-          hx-vals='js:{"geometry": selectedGeometry, "start_date": document.getElementById("start-date").value, "end_date": document.getElementById("end-date").value}'
-          hx-headers='{"Content-Type": "application/json"}'
-          hx-encoding="json"
-          hx-target="#tree-recommendation-result"
-          hx-swap="innerHTML">
-          Tree Recommendation
-        </button>
+        <button id="tree-recommendation-btn" class="btn btn-success">Tree Recommendation</button>
+
 
         <button id="save-ndvi-btn" class="btn btn-success">💾 Save NDVI Region</button>
         <div class="btn-group">
@@ -142,7 +134,6 @@
 <script>
   const csrfToken = "{{ csrf_token }}";
 </script>
-
 <script src="{% static 'map/js/map_init.js' %}"></script>
 <script src="{% static 'map/js/draw_logic.js' %}"></script>
 <script src="{% static 'map/js/loading.js' %}"></script>
