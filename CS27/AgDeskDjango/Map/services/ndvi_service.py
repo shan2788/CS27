@@ -30,8 +30,15 @@ MODEL_PATHS = {
 
 
 class NDVIService:
+    """
+        A service for fetching, caching, and analyzing NDVI (Normalized Difference Vegetation Index)
+        satellite imagery using Sentinel Hub and geometric comparison.
+        """
 
     def __init__(self):
+        """
+        Initialize the NDVIService instance with SentinelService, GeoService, cache paths, and evalscript.
+        """
         self.logger = logging.getLogger(__name__)
         self.sentinel = SentinelService()
         self.geo = GeoService()
@@ -40,22 +47,35 @@ class NDVIService:
             'cache_index': os.path.join(settings.BASE_DIR, "Map/cache_index.json")
         }
         self.evalscript = """//VERSION=3
-                function setup() {
-                  return { input: ["B04", "B08"], output: { bands: 4, sampleType: "UINT8" }};
-                }
-                function evaluatePixel(sample) {
-                  let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
-                  let r=0,g=0,b=0,a=255;
-                  if (ndvi < -0.2) r=g=b=0;
-                  else if (ndvi < 0) { r=165; g=42; b=42; }
-                  else if (ndvi < 0.2) { r=255; g=255; b=0; }
-                  else if (ndvi < 0.4) { r=0; g=255; b=0; }
-                  else { r=0; g=128; b=0; }
-                  if (sample.B08 === 0 && sample.B04 === 0) a = 0;
-                  return [r, g, b, a];
-                }"""
+                    function setup() {
+                      return { input: ["B04", "B08"], output: { bands: 4, sampleType: "UINT8" }};
+                    }
+                    function evaluatePixel(sample) {
+                      let ndvi = (sample.B08 - sample.B04) / (sample.B08 + sample.B04);
+                      let r=0,g=0,b=0,a=255;
+                      if (ndvi < -0.2) r=g=b=0;
+                      else if (ndvi < 0) { r=165; g=42; b=42; }
+                      else if (ndvi < 0.2) { r=255; g=255; b=0; }
+                      else if (ndvi < 0.4) { r=0; g=255; b=0; }
+                      else { r=0; g=128; b=0; }
+                      if (sample.B08 === 0 && sample.B04 === 0) a = 0;
+                      return [r, g, b, a];
+                    }"""
+
 
     async def get_ndvi_image(self, geometry, start_date, end_date, use_cache=True):
+        """
+            Asynchronously retrieve NDVI image for the specified geometry and date range.
+
+            Args:
+                geometry (dict): GeoJSON geometry used for fetching NDVI image.
+                start_date (str): Start date in YYYY-MM-DD format.
+                end_date (str): End date in YYYY-MM-DD format.
+                use_cache (bool): Whether to use cached images if available.
+
+            Returns:
+                bytes or None: Binary image data if successful, None if failed.
+        """
         cache_key = hashlib.md5(f"{geometry}_{start_date}_{end_date}".encode()).hexdigest()
         cache_path = os.path.join(self.model_paths['cache_dir'], f"{cache_key}.png")
 
@@ -127,6 +147,18 @@ class NDVIService:
         return None
 
     async def fetch_and_save_ndvi(self, farm_id, geometry, start_date, end_date):
+        """
+            Fetch NDVI image and save it to the database associated with a farm.
+
+            Args:
+                farm_id (int): ID of the farm to associate the NDVI image with.
+                geometry (dict): GeoJSON geometry of the area.
+                start_date (str): Start date in YYYY-MM-DD format.
+                end_date (str): End date in YYYY-MM-DD format.
+
+            Returns:
+                int or None: ID of the saved NDVIRegion object or None if fetching failed.
+        """
         image_binary = await self.get_ndvi_image(geometry, start_date, end_date, use_cache=True)
         if not image_binary:
             return None
@@ -140,6 +172,20 @@ class NDVIService:
 
     @staticmethod
     async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscript, use_cache=True):
+        """
+               A static async method to retrieve NDVI binary image using a shared aiohttp session.
+
+               Args:
+                   session (aiohttp.ClientSession): An open aiohttp session.
+                   geometry (dict): GeoJSON geometry.
+                   start_date (str): Start date (YYYY-MM-DD).
+                   end_date (str): End date (YYYY-MM-DD).
+                   evalscript (str): Sentinel Hub evalscript defining the image processing.
+                   use_cache (bool): Whether to use or update the image cache.
+
+               Returns:
+                   bytes or None: Image binary data or None on failure.
+        """
         cache_key = hashlib.md5(f"{geometry}_{start_date}_{end_date}".encode()).hexdigest()
         cache_path = os.path.join(MODEL_PATHS['cache_dir'], f"{cache_key}.png")
         cache_index = {}
@@ -210,6 +256,27 @@ class NDVIService:
 
     @staticmethod
     def generate_monthly_summary(geometry, start_date, end_date, eval_script, logger):
+        """
+               Generate a monthly NDVI summary with statistics and images.
+
+               Args:
+                   geometry (dict): GeoJSON geometry defining the region of interest.
+                   start_date (str): Start date for statistics aggregation.
+                   end_date (str): End date for statistics aggregation.
+                   eval_script (str): Evalscript to use for fetching NDVI images.
+                   logger (Logger): Logger instance for error and status logging.
+
+               Returns:
+                   list of dict: A list of monthly NDVI summaries, each including:
+                       - 'month': YYYY-MM
+                       - 'ndvi_mean': Average NDVI value
+                       - 'ndvi_max': Max NDVI value
+                       - 'ndvi_min': Min NDVI value
+                       - 'image_base64': NDVI image encoded in base64
+
+               Raises:
+                   ValueError: If no statistics are found for the requested range.
+        """
         weekly_stats = StatisticsService.get_statistics_for_model_input(geometry, start_date, end_date)
         if not weekly_stats:
             raise ValueError("No weekly data found")

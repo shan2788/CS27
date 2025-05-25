@@ -1,5 +1,4 @@
-# ndvi_views.py (替代原来的 views.py 中 NDVI 相关部分)
-
+# ndvi_views.py
 import json, asyncio, os, datetime, base64
 from django.http import JsonResponse, HttpResponse
 from django.views import View
@@ -16,6 +15,12 @@ ndvi_service = NDVIService()
 
 @method_decorator(csrf_exempt, name='dispatch')
 class NDVIImageView(View):
+    """
+    Handle NDVI image preview requests.
+
+    Methods:
+        POST: Return a PNG NDVI image for the provided geometry and date range.
+    """
     def post(self, request):
         try:
             data = json.loads(request.body)
@@ -42,6 +47,12 @@ class NDVIImageView(View):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class NDVIImageSaveView(View):
+    """
+    Handle NDVI image generation and save requests.
+
+    Methods:
+        POST: Save the generated NDVI image to the database and return its ID.
+    """
     def post(self, request):
         try:
             user = request.user

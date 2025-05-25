@@ -3,15 +3,33 @@ import requests
 from .sentinel_service import SentinelService
 
 SENTINEL_SERVICE = SentinelService()
-
 logger = logging.getLogger(__name__)
 
 class StatisticsService:
+    """
+    Service for retrieving and processing Sentinel-2 statistical band data for model input.
+    """
+
     def __init__(self):
+        """Initialize an instance of StatisticsService."""
         pass
 
     @staticmethod
     def get_statistics_data(geometry, start_date, end_date):
+        """
+        Fetch weekly-aggregated band statistics from Sentinel Hub API.
+
+        Args:
+            geometry (dict): GeoJSON-like geometry for bounding box.
+            start_date (str): Start date in YYYY-MM-DD format.
+            end_date (str): End date in YYYY-MM-DD format.
+
+        Returns:
+            list: A list of statistics entries, one for each time interval.
+
+        Raises:
+            Exception: If the API response status is not 200.
+        """
         evalscript = """//VERSION=3
         function setup() {
           return {
@@ -81,6 +99,17 @@ class StatisticsService:
 
     @staticmethod
     def get_statistics_for_model_input(geometry, start_date, end_date):
+        """
+        Transform raw statistics into model-ready input with band averages and NDVI values.
+
+        Args:
+            geometry (dict): GeoJSON-style geometry input.
+            start_date (str): Start date in YYYY-MM-DD format.
+            end_date (str): End date in YYYY-MM-DD format.
+
+        Returns:
+            list of dict: List of interval entries with 'from', 'to', 'bands_mean', and 'ndvi_mean'.
+        """
         try:
             raw_stats = StatisticsService.get_statistics_data(geometry, start_date, end_date)
             results = []

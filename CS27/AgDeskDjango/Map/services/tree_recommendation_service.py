@@ -19,6 +19,7 @@ from ..test_pre import make_tree_recommendation, make_density_prediction, fake_c
 class TreeRecommendationService:
     _instance = None
 
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(TreeRecommendationService, cls).__new__(cls)

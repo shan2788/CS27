@@ -4,7 +4,21 @@ import numpy as np
 import torch
 
 class ModelService:
+    """
+        Base class for machine learning models used in prediction services.
+        Supports loading models and scalers for preprocessing and postprocessing.
+    """
     def __init__(self, logger=None, model_path=None, scaler_X_path=None, scaler_y_path=None, encoder_path=None):
+        """
+                Initialize ModelService with optional logger, model, scaler, and encoder paths.
+
+                Args:
+                    logger (Logger, optional): Logger for error handling.
+                    model_path (str, optional): Path to the PyTorch model file.
+                    scaler_X_path (str, optional): Path to the feature scaler.
+                    scaler_y_path (str, optional): Path to the output scaler.
+                    encoder_path (str, optional): Path to the label encoder.
+        """
         self.logger = logger
         self.model = torch.load(model_path, weights_only=False) if model_path else None
         self.scaler_X = joblib.load(scaler_X_path) if scaler_X_path else None
@@ -15,7 +29,20 @@ class ModelService:
         return
 
 class CropModelService(ModelService):
+    """
+        Subclass of ModelService for predicting crop species.
+    """
     def __init__(self, logger=None, model_path=None, scaler_X_path=None, scaler_y_path=None, encoder_path=None):
+        """
+            Initialize CropModelService with optional logger, model, scaler, and encoder paths.
+
+            Args:
+                logger (Logger, optional): Logger for error handling.
+                model_path (str, optional): Path to the scikit-learn model file.
+                scaler_X_path (str, optional): Path to the feature scaler.
+                scaler_y_path (str, optional): Path to the output scaler.
+                encoder_path (str, optional): Path to the label encoder.
+        """
         self.logger = logger
         self.model = joblib.load(model_path) if model_path else None
         self.scaler_X = joblib.load(scaler_X_path) if scaler_X_path else None
@@ -23,6 +50,15 @@ class CropModelService(ModelService):
         self.encoder = joblib.load(encoder_path) if encoder_path else None
 
     def make_prediction(self, formatted_data):
+        """
+               Predict crop species from band statistics using top-3 softmax probabilities.
+
+               Args:
+                   formatted_data (list of dict): List of entries with band mean values.
+
+               Returns:
+                   str: A string listing the top 3 predicted crop classes and their probabilities.
+        """
         try:
             # Extract the band values from the formatted data
             band_values = []
@@ -60,11 +96,26 @@ class CropModelService(ModelService):
     
 
 class BiomassModelService(ModelService):
+    """
+        Subclass of ModelService for predicting biomass and converting it to CO2 equivalent.
+    """
     def __init__(self, logger=None, model_path=None, scaler_X_path=None, scaler_y_path=None, encoder_path=None):
+        """
+               Initialize BiomassModelService with biomass-specific model and scalers.
+        """
         super().__init__(logger, model_path, scaler_X_path, scaler_y_path, encoder_path)
     
 
     def calculate_evi(self, bands_mean):
+        """
+                Calculate the Enhanced Vegetation Index (EVI) using specific band values.
+
+                Args:
+                    bands_mean (dict): Dictionary of band mean values.
+
+                Returns:
+                    float: Calculated EVI value.
+        """
         try:
             G = 2.5
             C1 = 6.0
@@ -88,6 +139,15 @@ class BiomassModelService(ModelService):
             return 0
         
     def make_prediction(self, formatted_data):
+        """
+                Predict biomass values from NDVI, EVI, and band means.
+
+                Args:
+                    formatted_data (list of dict): List of entries containing NDVI and band data.
+
+                Returns:
+                    np.ndarray or str: Predicted biomass values or error message.
+        """
         self.model.eval()  # Set the model to evaluation mode
         try:
             # Extract the band values and indices (NDVI, EVI) from the formatted data
@@ -127,10 +187,14 @@ class BiomassModelService(ModelService):
 
     def convert_tree_biomass_array_to_CO2(self, tree_biomass_array, carbon_content_percentage=50):
         """
-        Convert an array of tree biomass values to equivalent CO2 emissions credit.
-        :param tree_biomass_array: Array of tree biomass values (in tons)
-        :param carbon_content_percentage: Percentage of biomass that is carbon (default: 50% for trees)
-        :return: Array of CO2 emissions credit (in tons)
+            Convert an array of tree biomass values to equivalent CO2 emissions credit.
+
+            Args:
+                tree_biomass_array (array-like): Array of tree biomass values (in tons).
+                carbon_content_percentage (float): Percentage of biomass that is carbon (default: 50).
+
+            Returns:
+                np.ndarray: Array of equivalent CO2 emissions (in tons).
         """
         # Constants
         molar_mass_C = 12.01  # g/mol (Carbon)

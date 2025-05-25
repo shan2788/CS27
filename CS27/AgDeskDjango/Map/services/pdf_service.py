@@ -12,13 +12,28 @@ from reportlab.lib.enums import TA_LEFT
 import numpy as np
 
 class PDFService:
+    """
+        A service class to generate PDF reports for NDVI and carbon credit data using ReportLab.
+        Includes support for drawing wrapped text, generating tables, and formatting detailed content.
+    """
     def __init__(self):
         pass
     
     @staticmethod
     def draw_wrapped_text(p, text, x, y, max_width, line_height=15):
         """
-        Draw text with automatic line wrapping.
+        Draw text on a canvas with automatic word wrapping.
+
+        Args:
+            p (Canvas): ReportLab canvas object.
+            text (str): Text to be drawn.
+            x (float): X-coordinate of text start.
+            y (float): Y-coordinate of first line.
+            max_width (float): Maximum width before wrapping.
+            line_height (int): Height between lines.
+
+        Returns:
+            float: Updated Y position after drawing.
         """
         words = text.split(' ')
         line = ''
@@ -36,8 +51,20 @@ class PDFService:
     @staticmethod
     def generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data, farm_details):
         """
-        Generate a beautiful PDF report for NDVI data using ReportLab Platypus.
+        Generate a PDF report containing NDVI statistics, prediction results, and farm details.
+
+        Args:
+            start_date (str): Start date for the report.
+            end_date (str): End date for the report.
+            predicted_crop (str): Predicted crop type.
+            predicted_biomass (float or np.ndarray): Predicted biomass value(s).
+            formatted_data (list of dict): Interval-based NDVI and bands data.
+            farm_details (dict): Information about the farm (name, location, ID).
+
+        Returns:
+            BytesIO: Binary stream of the generated PDF.
         """
+
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
                                 rightMargin=2*cm, leftMargin=2*cm,
@@ -115,7 +142,19 @@ class PDFService:
     @staticmethod
     def generate_credit_report(start_date, end_date, estimated_area_square, geometry_data, predicted_CO2, formatted_data, farm_details):
         """
-        Generate a beautiful PDF report for carbon credit data using ReportLab Platypus.
+        Generate a carbon credit eligibility PDF report based on predicted CO₂ data and farm geometry.
+
+        Args:
+            start_date (str): Start date for data range.
+            end_date (str): End date for data range.
+            estimated_area_square (float): Area of the region in km².
+            geometry_data (dict): GeoJSON-style geometry information.
+            predicted_CO2 (list or np.ndarray): Predicted carbon values.
+            formatted_data (list of dict): Optional interval-based report content.
+            farm_details (dict): Farm metadata.
+
+        Returns:
+            BytesIO: Binary stream of the generated PDF.
         """
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4,
@@ -178,7 +217,13 @@ class PDFService:
     @staticmethod
     def calculate_positive_average(array):
         """
-        Calculate the average of positive values in a numpy array.
+        Calculate the mean of all positive values in a numpy array.
+
+        Args:
+            array (np.ndarray): Input array containing numerical values.
+
+        Returns:
+            float or None: Mean of positive values, or None if none exist.
         """
         positive_values = array[array > 0]
         if positive_values.size > 0:

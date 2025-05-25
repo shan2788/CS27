@@ -1,16 +1,32 @@
-# services/sentinel_service.py
 from dotenv import load_dotenv
 import requests
 import os
 import time
 
 class SentinelService:
+    """
+    Service class for managing Sentinel Hub API access tokens and instance IDs.
+    Handles automatic retrieval and caching of authentication tokens.
+    """
+
     def __init__(self):
+        """
+        Load environment variables and initialize token storage.
+        """
         load_dotenv()
         self._token = None
         self._token_expiry = 0
 
     def get_token(self):
+        """
+        Retrieve a valid access token from Sentinel Hub. Cached if not expired.
+
+        Returns:
+            str: A valid access token string.
+
+        Raises:
+            HTTPError: If the request to the token endpoint fails.
+        """
         now = time.time()
         if self._token and now < self._token_expiry:
             return self._token
@@ -32,4 +48,10 @@ class SentinelService:
         return self._token
 
     def get_instance_id(self):
+        """
+        Get the Sentinel Hub instance ID from environment variables.
+
+        Returns:
+            str: Sentinel Hub instance ID.
+        """
         return os.getenv("SENTINEL_HUB_INSTANCE_ID")

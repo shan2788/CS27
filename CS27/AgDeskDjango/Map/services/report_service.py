@@ -1,5 +1,3 @@
-# services/report_generator.py
-
 import os
 import datetime
 import json
@@ -11,11 +9,14 @@ from .pdf_service import PDFService
 from .geo_service import GeoService
 from Map.models import NDVIReport
 from FarmAcc.models import FarmInfo
-
 from Map.models import CarbonCredit
 
-
 class ReportGenerator:
+    """
+    Singleton class responsible for generating NDVI and carbon credit reports.
+    Handles data preparation, model predictions, PDF creation, and database persistence.
+    """
+
     _instance = None
 
     def __new__(cls, model_paths=None, report_path=None, logger=None):
@@ -25,6 +26,14 @@ class ReportGenerator:
         return cls._instance
 
     def __init__(self, model_paths=None, report_path=None, logger=None):
+        """
+        Initialize the ReportGenerator with model paths, report storage path, and optional logger.
+
+        Args:
+            model_paths (dict): Dictionary containing paths to required ML models and scalers.
+            report_path (str): Directory path to save generated PDF reports.
+            logger (Logger, optional): Logger instance for error logging.
+        """
         if self._initialized:
             return
         self.model_paths = model_paths
@@ -33,17 +42,33 @@ class ReportGenerator:
         self._initialized = True
 
     def generate(self, geometry_data, start_date, end_date, farm_details, user):
+        """
+        Generate and save an NDVI PDF report based on prediction results.
+
+        Args:
+            geometry_data (dict): GeoJSON-style geometry input.
+            start_date (str): Start date of the report.
+            end_date (str): End date of the report.
+            farm_details (dict): Metadata including farm name, location, and ID.
+            user (User): Django user object with currentFarm_id.
+
+        Returns:
+            Tuple[BytesIO, str]: PDF buffer and filename of the generated report.
+
+        Raises:
+            Exception: If any step in report generation fails.
+        """
         try:
             geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
 
-            # Step 1: 统计数据与模型输入
+            # Step 1: Retrieve statistics and prepare input for models
             formatted_data = StatisticsService.get_statistics_for_model_input(geometry_data, start_date, end_date)
 
-            # Step 2: 作物预测
+            # Step 2: Crop prediction
             crop_model = CropModelService(self.logger, model_path=self.model_paths['crop_model'], encoder_path=self.model_paths['crop_encoder'])
             predicted_crop = crop_model.make_prediction(formatted_data)
 
-            # Step 3: 生物量预测
+            # Step 3: Biomass prediction
             biomass_model = BiomassModelService(
                 self.logger,
                 self.model_paths['biomass_model'],
@@ -52,7 +77,7 @@ class ReportGenerator:
             )
             predicted_biomass = biomass_model.make_prediction(formatted_data)
 
-            # Step 4: 报告生成与保存
+            # Step 4: Generate and save PDF report
             buffer = PDFService.generate_pdf_report(start_date, end_date, predicted_crop, predicted_biomass, formatted_data, farm_details)
             filename = f"NDVI_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
             os.makedirs(self.report_path, exist_ok=True)
@@ -60,7 +85,7 @@ class ReportGenerator:
             with open(file_path, 'wb') as f:
                 f.write(buffer.getvalue())
 
-            # Step 5: 写入数据库
+            # Step 5: Save report metadata to database
             farm = self._get_farm(user)
             NDVIReport.objects.create(
                 farm=farm,
@@ -75,13 +100,35 @@ class ReportGenerator:
 
         except Exception as e:
             self.logger.error(f"Report generation failed: {e}")
-            raise e  # 交给上层处理
+            raise e  # Propagate the exception to the calling layer
 
     def _get_farm(self, user):
+        """
+        Retrieve the farm instance associated with the user.
+
+        Args:
+            user (User): Django user object.
+
+        Returns:
+            FarmInfo or None: Associated farm instance, or None if not found.
+        """
         farm_id = getattr(user, "currentFarm_id", None)
         return FarmInfo.objects.get(id=farm_id) if farm_id else None
 
     def generate_carbon_report(self, geometry_data, start_date, end_date, farm_details, user):
+        """
+        Generate and save a Carbon Credit PDF report based on biomass predictions and region area.
+
+        Args:
+            geometry_data (dict): GeoJSON-style geometry input.
+            start_date (str): Start date of the report.
+            end_date (str): End date of the report.
+            farm_details (dict): Metadata including farm name, location, and ID.
+            user (User): Django user object with currentFarm_id.
+
+        Returns:
+            BytesIO: Buffer containing the generated PDF.
+        """
         geo_obj = GEOSGeometry(json.dumps(geometry_data), srid=4326)
 
         formatted_data = StatisticsService.get_statistics_for_model_input(
@@ -110,7 +157,7 @@ class ReportGenerator:
         with open(file_path, 'wb') as f:
             f.write(buffer.getvalue())
 
-        # 数据库写入
+        # Save carbon credit report to database
         farm_id = getattr(user, "currentFarm_id", None)
         farm = FarmInfo.objects.get(id=farm_id) if farm_id else None
         CarbonCredit.objects.create(
