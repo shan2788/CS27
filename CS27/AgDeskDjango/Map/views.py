@@ -33,7 +33,8 @@ def extract_geometry_dates(request):
     geometry = data.get("geometry")
     start_date = data.get("start_date", "2025-02-23")
     end_date = data.get("end_date", "2025-03-23")
-    return geometry, start_date, end_date
+    farm_details = data.get("farm_details", {})
+    return geometry, start_date, end_date, farm_details
 
 @login_required(login_url="login")
 def map_view(request):
@@ -43,11 +44,11 @@ def map_view(request):
 @require_POST
 @handle_view_errors(logger)
 def generate_report(request):
-    geometry, start_date, end_date = extract_geometry_dates(request)
+    geometry, start_date, end_date, farm_details = extract_geometry_dates(request)
     if not geometry:
         return JsonResponse({'error': 'Missing geometry data'}, status=400)
     generator = ReportGenerator(settings.MODEL_PATHS, settings.REPORT_PATH, logger)
-    pdf_buffer, _ = generator.generate(geometry, start_date, end_date, request.user)
+    pdf_buffer, _ = generator.generate(geometry, start_date, end_date, farm_details, request.user)
     return HttpResponse(pdf_buffer, content_type='application/pdf')
 
 @csrf_exempt
@@ -70,7 +71,7 @@ def tree_recommendation_view(request):
 @require_POST
 @handle_view_errors(logger)
 def ndvi_monthly_summary(request):
-    geometry, start_date, end_date = extract_geometry_dates(request)
+    geometry, start_date, end_date, farm_details = extract_geometry_dates(request)
     result = NDVIService.generate_monthly_summary(
         geometry=geometry,
         start_date=start_date,
@@ -84,11 +85,11 @@ def ndvi_monthly_summary(request):
 @require_POST
 @handle_view_errors(logger)
 def carbon_credit(request):
-    geometry_data, start_date, end_date = extract_geometry_dates(request)
+    geometry_data, start_date, end_date, farm_details = extract_geometry_dates(request)
     if not geometry_data:
         return JsonResponse({'error': 'Missing geometry data'}, status=400)
     service = ReportGenerator(settings.MODEL_PATHS, settings.REPORT_PATH, logger)
-    pdf_buffer = service.generate_carbon_report(geometry_data, start_date, end_date, request.user)
+    pdf_buffer = service.generate_carbon_report(geometry_data, start_date, end_date, farm_details, request.user)
     return HttpResponse(pdf_buffer, content_type='application/pdf')
 
 @login_required
