@@ -3,22 +3,16 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.http import HttpResponse, JsonResponse
-from django.contrib.gis.geos import GEOSGeometry
 from django.conf import settings
 
-import os, json, logging
+import json, logging
 
 from .models import NDVIRegion, NDVIReport, CarbonCredit
 from FarmAcc.models import FarmInfo
 
 from .services.history_service import HistoryService
 from .services.sentinel_service import SentinelService
-from .services.prediction_service import CropModelService, BiomassModelService
-from .services.pdf_service import PDFService
-from .services.geo_service import GeoService
-from .test_pre import make_tree_recommendation, make_density_prediction, fake_carbon_series
 from .services.ndvi_service import NDVIService
-from .services.statistics_service import StatisticsService
 from .services.report_service import ReportGenerator
 from .services.tree_recommendation_service import TreeRecommendationService
 from .utils.decorators import handle_view_errors
