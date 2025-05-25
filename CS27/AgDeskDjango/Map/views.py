@@ -56,7 +56,11 @@ def generate_report(request):
     """
     Generate an NDVI report PDF and return it as an HTTP response.
     """
+<<<<<<< Updated upstream
     geometry, start_date, end_date, farm_details = extract_geometry_dates(request)
+=======
+    geometry, start_date, end_date = extract_geometry_dates(request)
+>>>>>>> Stashed changes
     if not geometry:
         return JsonResponse({'error': 'Missing geometry data'}, status=400)
     generator = ReportGenerator(settings.MODEL_PATHS, settings.REPORT_PATH, logger)
@@ -89,7 +93,11 @@ def ndvi_monthly_summary(request):
     """
     Return monthly NDVI summary statistics with base64-encoded images.
     """
+<<<<<<< Updated upstream
     geometry, start_date, end_date, farm_details = extract_geometry_dates(request)
+=======
+    geometry, start_date, end_date = extract_geometry_dates(request)
+>>>>>>> Stashed changes
     result = NDVIService.generate_monthly_summary(
         geometry=geometry,
         start_date=start_date,
@@ -106,7 +114,11 @@ def carbon_credit(request):
     """
     Generate and return a carbon credit PDF report.
     """
+<<<<<<< Updated upstream
     geometry_data, start_date, end_date, farm_details = extract_geometry_dates(request)
+=======
+    geometry_data, start_date, end_date = extract_geometry_dates(request)
+>>>>>>> Stashed changes
     if not geometry_data:
         return JsonResponse({'error': 'Missing geometry data'}, status=400)
     service = ReportGenerator(settings.MODEL_PATHS, settings.REPORT_PATH, logger)
