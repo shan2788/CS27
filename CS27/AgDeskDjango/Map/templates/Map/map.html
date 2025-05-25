@@ -115,6 +115,7 @@
       <div id="history-content"></div>
     </div>
 
+    </div>
 </div>
 
 <!-- Leaflet JS & CSS -->
@@ -126,6 +127,7 @@
 
 <script>
   const csrfToken = "{{ csrf_token }}";
+  const sentinel_instance_id = "{{ sentinel_instance_id }}";
 </script>
 <script src="{% static 'map/js/map_init.js' %}"></script>
 <script src="{% static 'map/js/draw_logic.js' %}"></script>
