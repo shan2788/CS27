@@ -20,6 +20,7 @@ from .utils.decorators import handle_view_errors
 # Logger setup
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
+logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
 # Initialize Sentinel service instance
 SENTINEL_SERVICE = SentinelService()
@@ -63,18 +64,21 @@ def tree_recommendation_view(request):
     """
     Generate HTML content for tree species recommendation.
     """
-    data = json.loads(request.body)
-    geometry = data.get("geometry")
-    start_date = data.get("start_date")
-    end_date = data.get("end_date")
-    farm_id = data.get("farm_id")
-    print(farm_id)
+    try:
+        data = json.loads(request.body)
+        geometry = data.get("geometry")
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        farm_id = data.get("farm_id")
 
-    service = TreeRecommendationService()
-    html = service.generate(geometry, start_date, end_date, farm_id)
+        service = TreeRecommendationService(settings.MODEL_PATHS, logger)
+        html = service.generate(geometry, start_date, end_date, farm_id)
 
-    return HttpResponse(html)
-
+        return HttpResponse(html)
+    except Exception as e:
+        logger.error(f"Tree recommendation error: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+    
 @csrf_exempt
 @require_POST
 @handle_view_errors(logger)
