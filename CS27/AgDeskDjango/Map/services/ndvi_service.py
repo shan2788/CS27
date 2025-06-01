@@ -4,6 +4,7 @@ import os, json, hashlib, logging, asyncio, aiohttp, datetime
 from collections import defaultdict
 
 import numpy as np
+from asgiref.sync import sync_to_async
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
@@ -146,29 +147,26 @@ class NDVIService:
             self.logger.error(f"NDVI fetch error: {e}")
         return None
 
-    async def fetch_and_save_ndvi(self, farm_id, geometry, start_date, end_date):
-        """
-            Fetch NDVI image and save it to the database associated with a farm.
+    @sync_to_async
+    def get_farm_by_id(self, farm_id):
+        return FarmInfo.objects.get(id=farm_id)
 
-            Args:
-                farm_id (int): ID of the farm to associate the NDVI image with.
-                geometry (dict): GeoJSON geometry of the area.
-                start_date (str): Start date in YYYY-MM-DD format.
-                end_date (str): End date in YYYY-MM-DD format.
-
-            Returns:
-                int or None: ID of the saved NDVIRegion object or None if fetching failed.
-        """
-        image_binary = await self.get_ndvi_image(geometry, start_date, end_date, use_cache=True)
-        if not image_binary:
-            return None
-        geo_obj = GEOSGeometry(json.dumps(geometry), srid=4326)
-        farm = FarmInfo.objects.get(id=farm_id)
-        region = NDVIRegion(farm=farm, geometry=geo_obj)
+    @sync_to_async
+    def save_region(self, farm, geometry, image_binary):
+        region = NDVIRegion(farm=farm, geometry=geometry)
         filename = f"ndvi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
         region.image.save(filename, ContentFile(image_binary))
         region.save()
         return region.id
+
+    async def fetch_and_save_ndvi(self, farm_id, geometry, start_date, end_date):
+        image_binary = await self.get_ndvi_image(geometry, start_date, end_date, use_cache=True)
+        if not image_binary:
+            return None
+
+        geo_obj = GEOSGeometry(json.dumps(geometry), srid=4326)
+        farm = await self.get_farm_by_id(farm_id)  # ✅ 异步获取
+        return await self.save_region(farm, geo_obj, image_binary)  # ✅ 异步保存
 
     @staticmethod
     async def get_ndvi_image_binary(session, geometry, start_date, end_date, evalscript, use_cache=True):

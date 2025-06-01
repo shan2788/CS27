@@ -1,5 +1,7 @@
 # ndvi_views.py
 import json, asyncio, os, datetime, base64
+
+from asgiref.sync import async_to_sync
 from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -62,9 +64,7 @@ class NDVIImageSaveView(View):
             start_date = data.get('start_date', "2025-02-23")
             end_date = data.get('end_date', "2025-03-23")
 
-            region_id = asyncio.run(
-                ndvi_service.fetch_and_save_ndvi(farm_id, geometry, start_date, end_date)
-            )
+            region_id = async_to_sync(ndvi_service.fetch_and_save_ndvi)(farm_id, geometry, start_date, end_date)
             if region_id:
                 return JsonResponse({'status': 'ok', 'id': region_id})
             return JsonResponse({'error': 'Failed to fetch or save image'}, status=500)

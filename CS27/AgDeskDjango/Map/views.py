@@ -110,12 +110,26 @@ def carbon_credit(request):
     pdf_buffer = service.generate_carbon_report(geometry_data, start_date, end_date, farm_details, request.user)
     return HttpResponse(pdf_buffer, content_type='application/pdf')
 
+
 @login_required
 def region_history(request, farm_id):
     """
-    View for NDVI region history filtered by farm.
+    View to show all NDVIRegion records for a given farm.
+    Only the farms owned by the current user are allowed.
     """
-    return _history_view(request, farm_id, NDVIRegion, 'Map/region_history.html', 'Map/region_history_fragment.html')
+    # 校验当前用户是否拥有该 farm
+    farm = get_object_or_404(FarmInfo, id=farm_id, user_profiles=request.user)
+
+    # 获取当前农场下的 NDVI 区域记录，按时间倒序排列
+    regions = NDVIRegion.objects.filter(farm=farm).order_by('-created_at')
+
+    # 根据是否是 HTMX 请求选择渲染模板
+    template_name = 'Map/region_history_fragment.html' if request.headers.get('x-requested-with') == 'XMLHttpRequest' else 'Map/region_history.html'
+
+    return render(request, template_name, {
+        'farm': farm,
+        'regions': regions
+    })
 
 @login_required
 def report_history(request, farm_id):
