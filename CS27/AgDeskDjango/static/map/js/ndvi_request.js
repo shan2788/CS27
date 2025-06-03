@@ -30,43 +30,11 @@ function submitPolygon() {
     });
 }
 
-function saveNDVIRegion() {
-  if (!drawnPolygon) {
-    alert("Please draw a region first.");
-    return;
-  }
-
-  showLoading("Saving NDVI Region...");
-
-  const payload = {
-    geometry: drawnPolygon,
-    start_date: document.getElementById("start-date").value,
-    end_date: document.getElementById("end-date").value,
-  };
-
-  fetch("/map/save-ndvi/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": csrfToken
-    },
-    body: JSON.stringify(payload)
-  })
-    .then(res => {
-      if (!res.ok) throw new Error("Network error");
-      return res.json();
-    })
-    .then(data => {
-      hideLoading();
-      alert("NDVI region saved successfully!");
-    })
-    .catch(err => {
-      hideLoading();
-      console.error(err);
-      alert("Failed to save NDVI region.");
-    });
+let debounceTimer = null;
+function debounceSubmitPolygon() {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(submitPolygon, 300);
 }
-
 
 
 
@@ -110,4 +78,3 @@ function fetchMonthlyNDVI() {
       console.error(err);
     });
 }
-window.saveNDVIRegion = saveNDVIRegion;

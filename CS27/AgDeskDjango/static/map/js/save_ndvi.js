@@ -47,7 +47,6 @@ function saveNDVIRegion() {
     });
 }
 
-// ✅ DOM Ready 后绑定按钮事件
 document.addEventListener("DOMContentLoaded", function () {
   const btn = document.getElementById("save-ndvi-btn");
   if (btn) {
