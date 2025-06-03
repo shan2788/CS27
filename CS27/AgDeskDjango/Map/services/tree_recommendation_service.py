@@ -26,13 +26,12 @@ import numpy as np
 class TreeRecommendationService:
     _instance = None
 
-
     def __new__(cls, model_paths=None, logger=None):
         if cls._instance is None:
             cls._instance = super(TreeRecommendationService, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self, model_paths=None, logger=None):
         """
         Initialize the TreeRecommendationService with model paths, report storage path, and optional logger.
@@ -71,7 +70,7 @@ class TreeRecommendationService:
 
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
-        
+
         start_date_prev = (start_date_obj - timedelta(days=365)).strftime("%Y-%m-%d")
         end_date_prev = (end_date_obj - timedelta(days=365)).strftime("%Y-%m-%d")
 
@@ -81,7 +80,8 @@ class TreeRecommendationService:
             raise ValueError("No NDVI stats available")
 
         # Crop prediction
-        crop_model = CropModelService(self.logger, model_path=self.model_paths['crop_model'], encoder_path=self.model_paths['crop_encoder'])
+        crop_model = CropModelService(self.logger, model_path=self.model_paths['crop_model'],
+                                      encoder_path=self.model_paths['crop_encoder'])
         predicted_crop = crop_model.make_prediction(formatted_data)
         recommend_crop = TreeRecommendationService.get_most_frequent_top1(predicted_crop)[0]
 
@@ -93,7 +93,7 @@ class TreeRecommendationService:
             self.model_paths['scaler_y']
         )
         predicted_biomass = biomass_model.make_prediction(formatted_data)
-        
+
         # calculate average of predicted biomass
         biomass_values = np.array(predicted_biomass).flatten()
         density = np.mean(biomass_values)
@@ -108,15 +108,15 @@ class TreeRecommendationService:
             "species": recommend_crop,
             "density": density,
             "carbon": chart_base64,
-            "farm_id": farm_id,  # ✅ 原有变量
-            "currentFarmID": farm_id,  # ✅ 加入这个变量以供 base.html 使用
+            "farm_id": farm_id,
+            "currentFarmID": farm_id,  
         })
 
         return html
 
     def _plot_carbon_chart(self, carbon_values):
         df = pd.DataFrame({
-            "Interval": [f"Week{i+1}" for i in range(len(carbon_values))],
+            "Interval": [f"Week{i + 1}" for i in range(len(carbon_values))],
             "Carbon (tons)": carbon_values
         })
 

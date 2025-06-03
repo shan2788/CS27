@@ -78,7 +78,8 @@ def tree_recommendation_view(request):
     except Exception as e:
         logger.error(f"Tree recommendation error: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
-    
+
+
 @csrf_exempt
 @require_POST
 @handle_view_errors(logger)
